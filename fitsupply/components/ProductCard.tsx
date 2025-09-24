@@ -1,8 +1,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Product } from "@/types";
+import { useDispatch } from "react-redux";
+import { AppDispatch } from "@/store";
+import { addToCart } from "@/store/slices/cartSlice";
 
 export default function ProductCard({ product }: { product: Product }) {
+  const dispatch = useDispatch<AppDispatch>();
+
   return (
     <div className='border rounded p-3 flex flex-col'>
       <Link
@@ -21,7 +26,21 @@ export default function ProductCard({ product }: { product: Product }) {
       </Link>
       <div className='mt-auto flex items-center justify-between'>
         <div className='text-lg font-bold'>${product.price.toFixed(2)}</div>
-        <button className='bg-black text-white px-3 py-1 rounded'>Add</button>
+        <button
+          onClick={() =>
+            dispatch(
+              addToCart({
+                productId: product.id,
+                name: product.name,
+                price: product.price,
+                image: product.images?.[0],
+                qty: 1,
+              })
+            )
+          }
+          className='bg-black text-white px-3 py-1 rounded'>
+          Add
+        </button>
       </div>
     </div>
   );

@@ -1,21 +1,59 @@
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import useSWR from "swr";
+import { useDispatch } from "react-redux";
 import api from "@/lib/apiClient";
 import Image from "next/image";
 import { Product } from "@/types";
-
-const fetcher = (url: string) => api.get(url).then((r) => r.data);
+import ProductGallery from "@/components/ProductGallery";
+import { AppDispatch } from "@/store";
+import { addToCart } from "@/store/slices/cartSlice";
 
 export default function ProductDetail() {
   const { query } = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const slug = query.slug as string;
-  const { data: product, error } = useSWR<Product>(
-    () => (slug ? `/products?slug=${slug}` : null),
-    fetcher
-  );
+  const [product, setProduct] = useState<Product | null>(null);
+  const [error, setError] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [addedToCart, setAddedToCart] = useState(false);
 
-  if (!product) return <div className='p-6'>Loading...</div>;
+  useEffect(() => {
+    if (slug) {
+      const fetchProduct = async () => {
+        try {
+          setLoading(true);
+          const response = await api.get<Product>(`/products?slug=${slug}`);
+          setProduct(response.data);
+        } catch (err) {
+          setError(err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchProduct();
+    }
+  }, [slug]);
+
+  if (loading) return <div className='p-6'>Loading...</div>;
   if (error) return <div>Error loading product</div>;
+  if (!product) return <div>Product not found.</div>;
+
+  const handleAddToCart = () => {
+    dispatch(
+      addToCart({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.images?.[0],
+        qty: 1, // For now, we add 1. We can add a quantity selector later.
+      })
+    );
+    setAddedToCart(true);
+    setTimeout(() => {
+      setAddedToCart(false);
+    }, 2000); // Reset the message after 2 seconds
+  };
 
   return (
     <main className='container mx-auto p-4'>
@@ -23,7 +61,7 @@ export default function ProductDetail() {
         <div>
           <div className='w-full h-96 relative'>
             <Image
-              src={product.images[0]}
+              src={product.images[0]} // This will be replaced by the gallery
               alt={product.name}
               fill
               style={{ objectFit: "contain" }}
@@ -37,9 +75,16 @@ export default function ProductDetail() {
           </p>
           <p className='mt-4 text-gray-700'>{product.description}</p>
           <div className='mt-6'>
-            <button className='bg-black text-white px-4 py-2 rounded'>
-              Add to Cart
+            <button
+              onClick={handleAddToCart}
+              className='bg-black text-white px-6 py-3 rounded font-semibold hover:bg-gray-800 transition-colors'>
+              {addedToCart ? "Added!" : "Add to Cart"}
             </button>
+            {addedToCart && (
+              <p className='text-green-600 mt-2'>
+                Successfully added to your cart!
+              </p>
+            )}
           </div>
         </div>
       </div>

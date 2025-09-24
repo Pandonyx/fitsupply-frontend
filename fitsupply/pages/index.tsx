@@ -4,7 +4,6 @@ import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
 import { fetchProducts } from "@/store/slices/productSlice";
 import type { RootState, AppDispatch } from "@/store";
-import Header from "@/components/Header";
 
 export default function Home() {
   const dispatch = useDispatch<AppDispatch>();
@@ -19,8 +18,6 @@ export default function Home() {
 
   return (
     <main className='container mx-auto p-4'>
-      {/* Header Section */}
-      <Header />
       {/* Hero Section */}
       <section className='text-center my-10 p-6 bg-blue-700 rounded-lg'>
         <h1 className='text-4xl font-bold text-gray-100 mb-2'>
