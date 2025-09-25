@@ -8,7 +8,7 @@ import { FaTrash } from "react-icons/fa";
 export default function CartPage() {
   const { items } = useSelector((s: RootState) => s.cart);
   const dispatch = useDispatch<AppDispatch>();
-  const subtotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
+  const subtotal = items.reduce((sum, i) => sum + i.qty * +i.price, 0);
 
   if (items.length === 0) {
     return (
@@ -46,7 +46,7 @@ export default function CartPage() {
                   <div>
                     <div className='font-semibold'>{item.name}</div>
                     <div className='text-sm text-gray-600'>
-                      ${item.price.toFixed(2)}
+                      ${(+item.price).toFixed(2)}
                     </div>
                   </div>
                 </div>

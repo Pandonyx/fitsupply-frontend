@@ -15,7 +15,7 @@ export default function ProductCard({ product }: { product: Product }) {
         className='block'>
         <div className='w-full h-48 relative'>
           <Image
-            src={product.images?.[0] || "/images/placeholder.png"}
+            src={product.images?.[0] || "/images/placeholder.jpg"}
             alt={product.name}
             fill
             style={{ objectFit: "contain" }}
@@ -25,7 +25,9 @@ export default function ProductCard({ product }: { product: Product }) {
         <p className='text-sm text-gray-600'>{product.shortDescription}</p>
       </Link>
       <div className='mt-auto flex items-center justify-between'>
-        <div className='text-lg font-bold'>${product.price.toFixed(2)}</div>
+        <div className='text-lg font-bold'>
+          ${parseFloat(String(product.price)).toFixed(2)}
+        </div>
         <button
           onClick={() =>
             dispatch(

@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import { useDispatch } from "react-redux";
 import api from "@/lib/apiClient";
 import Image from "next/image";
-import { Product } from "@/types";
+import { Product } from "@/interfaces";
 import ProductGallery from "@/components/ProductGallery";
 import { AppDispatch } from "@/store";
 import { addToCart } from "@/store/slices/cartSlice";
@@ -22,8 +22,10 @@ export default function ProductDetail() {
       const fetchProduct = async () => {
         try {
           setLoading(true);
-          const response = await api.get<Product>(`/products?slug=${slug}`);
-          setProduct(response.data);
+          const response = await api.get<Product[]>(`/products?slug=${slug}`);
+          if (response.data && response.data.length > 0) {
+            setProduct(response.data[0]);
+          }
         } catch (err) {
           setError(err);
         } finally {
@@ -59,19 +61,15 @@ export default function ProductDetail() {
     <main className='container mx-auto p-4'>
       <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
         <div>
-          <div className='w-full h-96 relative'>
-            <Image
-              src={product.images[0]} // This will be replaced by the gallery
-              alt={product.name}
-              fill
-              style={{ objectFit: "contain" }}
-            />
-          </div>
+          <ProductGallery
+            images={product.images || []}
+            productName={product.name}
+          />
         </div>
         <div>
           <h1 className='text-2xl font-bold'>{product.name}</h1>
           <p className='text-xl font-semibold mt-2'>
-            ${product.price.toFixed(2)}
+            ${parseFloat(String(product.price)).toFixed(2)}
           </p>
           <p className='mt-4 text-gray-700'>{product.description}</p>
           <div className='mt-6'>

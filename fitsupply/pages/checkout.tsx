@@ -7,7 +7,7 @@ import { RootState } from "@/store";
 export default function CheckoutPage() {
   const { items } = useSelector((s: RootState) => s.cart);
   const router = useRouter();
-  const subtotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
+  const subtotal = items.reduce((sum, i) => sum + i.qty * +i.price, 0);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -145,12 +145,12 @@ export default function CheckoutPage() {
                   <div>
                     <div className='font-semibold'>{item.name}</div>
                     <div className='text-sm text-gray-600'>
-                      ${item.price.toFixed(2)}
+                      ${(+item.price).toFixed(2)}
                     </div>
                   </div>
                 </div>
                 <div className='font-medium'>
-                  ${(item.price * item.qty).toFixed(2)}
+                  ${(+item.price * item.qty).toFixed(2)}
                 </div>
               </div>
             ))}
