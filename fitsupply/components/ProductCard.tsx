@@ -1,49 +1,41 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Product } from "@/types";
-import { useDispatch } from "react-redux";
-import { AppDispatch } from "@/store";
-import { addToCart } from "@/store/slices/cartSlice";
+import { Product } from "@/interfaces";
 
-export default function ProductCard({ product }: { product: Product }) {
-  const dispatch = useDispatch<AppDispatch>();
+interface ProductCardProps {
+  product: Product;
+}
+
+// It's best practice to store this in a .env.local file
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
+const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+  // Use the first image as the primary, or a placeholder if none exist.
+  const imageUrl = product.images?.[0]
+    ? new URL(product.images[0], API_URL).href
+    : "/placeholder.png";
 
   return (
-    <div className='border rounded p-3 flex flex-col'>
-      <Link
-        href={`/products/${product.slug}`}
-        className='block'>
-        <div className='w-full h-48 relative'>
+    <div className='border rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300'>
+      <Link href={`/products/${product.slug}`}>
+        <div className='relative w-full h-64'>
           <Image
-            src={product.images?.[0] || "/images/placeholder.jpg"}
+            src={imageUrl}
             alt={product.name}
-            fill
-            style={{ objectFit: "contain" }}
+            layout='fill'
+            objectFit='cover'
           />
         </div>
-        <h3 className='font-semibold mt-2'>{product.name}</h3>
-        <p className='text-sm text-gray-600'>{product.shortDescription}</p>
-      </Link>
-      <div className='mt-auto flex items-center justify-between'>
-        <div className='text-lg font-bold'>
-          ${parseFloat(String(product.price)).toFixed(2)}
+        <div className='p-4'>
+          <h2 className='text-lg font-semibold truncate'>{product.name}</h2>
+          <p className='text-gray-500'>{product.category}</p>
+          <p className='text-xl font-bold mt-2'>
+            ${Number(product.price).toFixed(2)}
+          </p>
         </div>
-        <button
-          onClick={() =>
-            dispatch(
-              addToCart({
-                productId: product.id,
-                name: product.name,
-                price: product.price,
-                image: product.images?.[0],
-                qty: 1,
-              })
-            )
-          }
-          className='bg-black text-white px-3 py-1 rounded'>
-          Add
-        </button>
-      </div>
+      </Link>
     </div>
   );
-}
+};
+
+export default ProductCard;

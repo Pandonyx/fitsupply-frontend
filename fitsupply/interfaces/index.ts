@@ -1,5 +1,5 @@
 export interface Product {
-  id: string;
+  id: number;
   slug: string;
   name: string;
   price: number;
@@ -9,7 +9,6 @@ export interface Product {
   shortDescription?: string;
   description?: string;
   category?: string;
-  rating?: number;
   stock?: number;
 }
 export interface CartItem {
@@ -18,4 +17,8 @@ export interface CartItem {
   price: number;
   name: string;
   image?: string;
+}
+
+export interface ProductCardProps {
+  product: Product;
 }

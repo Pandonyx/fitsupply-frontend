@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { AppDispatch, RootState } from "@/store";
-import { registerUser } from "@/store/slices/authSlice";
+import { registerUser, loginUser, fetchUser } from "@/components/authSlice";
 
 export default function RegisterPage() {
   const [username, setUsername] = useState("");
@@ -21,19 +21,20 @@ export default function RegisterPage() {
   );
 
   useEffect(() => {
+    // When authentication is successful (after register + login), redirect to home.
     if (isAuthenticated) {
-      router.push("/profile"); // Redirect to profile page on successful registration
+      router.push("/");
     }
   }, [isAuthenticated, router]);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (password !== password2) {
       setFormError("Passwords do not match.");
       return;
     }
     setFormError(null); // Clear local errors before dispatching
-    dispatch(
+    const registerResult = await dispatch(
       registerUser({
         username,
         email,
@@ -43,6 +44,14 @@ export default function RegisterPage() {
         last_name: lastName,
       })
     );
+
+    // If registration was successful, automatically log the user in.
+    if (registerUser.fulfilled.match(registerResult)) {
+      const loginResult = await dispatch(loginUser({ username, password }));
+      if (loginUser.fulfilled.match(loginResult)) {
+        dispatch(fetchUser());
+      }
+    }
   };
 
   return (

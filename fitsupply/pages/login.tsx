@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { AppDispatch, RootState } from "@/store";
-import { loginUser, fetchUser } from "@/store/slices/authSlice";
+import { loginUser, fetchUser } from "@/components/authSlice";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -11,13 +11,14 @@ export default function LoginPage() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
 
+  const isRegistered = router.query.registered === "true";
   const { isAuthenticated, status, error } = useSelector(
     (state: RootState) => state.auth
   );
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push("/profile"); // Redirect to profile page on successful login
+      router.push("/profile");
     }
   }, [isAuthenticated, router]);
 
@@ -25,6 +26,7 @@ export default function LoginPage() {
     e.preventDefault();
     const resultAction = await dispatch(loginUser({ username, password }));
     if (loginUser.fulfilled.match(resultAction)) {
+      // After a successful login, fetch the user's profile data.
       dispatch(fetchUser());
     }
   };
@@ -36,6 +38,16 @@ export default function LoginPage() {
           onSubmit={handleSubmit}
           className='bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4'>
           <h1 className='text-2xl font-bold text-center mb-6'>Login</h1>
+
+          {isRegistered && (
+            <div
+              className='bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4'
+              role='alert'>
+              <span className='block sm:inline'>
+                Registration successful! Please log in.
+              </span>
+            </div>
+          )}
 
           {status === "failed" && error && (
             <div
