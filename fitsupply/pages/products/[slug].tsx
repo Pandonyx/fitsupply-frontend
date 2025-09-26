@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useDispatch, useSelector } from "react-redux";
 import Image from "next/image";
-import { Product } from "@/interfaces";
 import { AppDispatch, RootState } from "@/store";
 import { addToCart } from "@/store/slices/cartSlice";
 import { fetchProductBySlug } from "@/store/slices/productSlice";
@@ -58,8 +57,8 @@ export default function ProductDetail() {
             <Image
               src={imageUrl}
               alt={product.name}
-              layout='fill'
-              objectFit='contain'
+              fill
+              style={{ objectFit: "contain" }}
             />
           </div>
         </div>

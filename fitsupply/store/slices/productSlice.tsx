@@ -1,31 +1,20 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import api from "@/lib/apiClient";
 import { Product } from "@/interfaces";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
-if (!API_BASE_URL) {
-  throw new Error(
-    "NEXT_PUBLIC_API_URL is not set. Please check your .env.local file."
-  );
-}
 
 export const fetchProducts = createAsyncThunk(
   "products/fetchProducts",
   async (category: string | null = null, { rejectWithValue }) => {
     try {
-      // Correctly construct the URL with the /api/v1/ prefix
-      let url = `${API_BASE_URL}api/v1/products/`;
+      // Use api client which already has the correct base URL
+      let url = `/products/`;
       if (category) {
         url += `?category=${encodeURIComponent(category)}`;
       }
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`);
-      }
-      const data = await response.json();
-      return data;
+      const response = await api.get(url);
+      return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data?.detail || error.message);
     }
   }
 );
@@ -34,16 +23,11 @@ export const fetchProductById = createAsyncThunk(
   "products/fetchProductById",
   async (id: string, { rejectWithValue }) => {
     try {
-      // Assumes your API endpoint for a single product is /api/v1/products/{id}/
-      const url = `${API_BASE_URL}api/v1/products/${id}/`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`);
-      }
-      const data = await response.json();
-      return data;
+      // Use api client for consistency
+      const response = await api.get(`/products/${id}/`);
+      return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data?.detail || error.message);
     }
   }
 );
@@ -52,19 +36,23 @@ export const fetchProductBySlug = createAsyncThunk(
   "products/fetchProductBySlug",
   async (slug: string, { rejectWithValue }) => {
     try {
-      // Fetch a product by its slug. The API returns an array, so we take the first element.
-      const url = `${API_BASE_URL}api/v1/products/?slug=${slug}`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`);
+      // Use api client and try multiple approaches
+      let response;
+      try {
+        // First try direct slug lookup
+        response = await api.get(`/products/${slug}/`);
+        return response.data;
+      } catch (firstError) {
+        // Fallback to slug filtering
+        response = await api.get(`/products/?slug=${slug}`);
+        const data: Product[] = response.data;
+        if (data && data.length > 0) {
+          return data[0];
+        }
+        throw new Error(`Product with slug "${slug}" not found.`);
       }
-      const data: Product[] = await response.json();
-      if (data && data.length > 0) {
-        return data[0];
-      }
-      throw new Error(`Product with slug "${slug}" not found.`);
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data?.detail || error.message);
     }
   }
 );
@@ -77,44 +65,56 @@ const productsSlice = createSlice({
     status: "idle",
     error: null as string | null,
   },
-  reducers: {},
+  reducers: {
+    clearError: (state) => {
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
-    builder.addCase(fetchProducts.pending, (s) => {
-      s.status = "loading";
-    });
-    builder.addCase(fetchProducts.fulfilled, (s, action) => {
-      s.items = action.payload;
-      s.status = "succeeded";
-    });
-    builder.addCase(fetchProducts.rejected, (s, action) => {
-      s.status = "failed";
-      s.error = action.payload as string;
-    });
-    builder.addCase(fetchProductById.pending, (s) => {
-      s.status = "loading";
-      s.selectedItem = null;
-    });
-    builder.addCase(fetchProductById.fulfilled, (s, action) => {
-      s.selectedItem = action.payload;
-      s.status = "succeeded";
-    });
-    builder.addCase(fetchProductById.rejected, (s, action) => {
-      s.status = "failed";
-      s.error = action.payload as string;
-    });
-    builder.addCase(fetchProductBySlug.pending, (s) => {
-      s.status = "loading";
-      s.selectedItem = null;
-    });
-    builder.addCase(fetchProductBySlug.fulfilled, (s, action) => {
-      s.selectedItem = action.payload;
-      s.status = "succeeded";
-    });
-    builder.addCase(fetchProductBySlug.rejected, (s, action) => {
-      s.status = "failed";
-      s.error = action.payload as string;
-    });
+    builder
+      .addCase(fetchProducts.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(fetchProducts.fulfilled, (state, action) => {
+        state.items = action.payload;
+        state.status = "succeeded";
+        state.error = null;
+      })
+      .addCase(fetchProducts.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload as string;
+      })
+      .addCase(fetchProductById.pending, (state) => {
+        state.status = "loading";
+        state.selectedItem = null;
+        state.error = null;
+      })
+      .addCase(fetchProductById.fulfilled, (state, action) => {
+        state.selectedItem = action.payload;
+        state.status = "succeeded";
+        state.error = null;
+      })
+      .addCase(fetchProductById.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload as string;
+      })
+      .addCase(fetchProductBySlug.pending, (state) => {
+        state.status = "loading";
+        state.selectedItem = null;
+        state.error = null;
+      })
+      .addCase(fetchProductBySlug.fulfilled, (state, action) => {
+        state.selectedItem = action.payload;
+        state.status = "succeeded";
+        state.error = null;
+      })
+      .addCase(fetchProductBySlug.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload as string;
+      });
   },
 });
 
+export const { clearError } = productsSlice.actions;
 export default productsSlice.reducer;

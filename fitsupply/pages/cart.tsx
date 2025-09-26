@@ -1,7 +1,7 @@
 import { useSelector, useDispatch } from "react-redux";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { RootState, AppDispatch } from "@/store";
 import {
   removeFromCart,
@@ -12,26 +12,37 @@ import {
 import { FaTrash } from "react-icons/fa";
 
 export default function CartPage() {
-  const { items } = useSelector((s: RootState) => s.cart);
-  const { user } = useSelector((s: RootState) => s.auth);
+  const { items, status } = useSelector((s: RootState) => s.cart);
+  const { user, isAuthenticated } = useSelector((s: RootState) => s.auth);
   const dispatch = useDispatch<AppDispatch>();
-  const isInitialMount = useRef(true);
 
-  // Fetch cart on mount
+  // Fetch cart from server when user logs in
   useEffect(() => {
-    if (user) dispatch(fetchCart());
-  }, [dispatch, user]);
+    if (isAuthenticated && user) {
+      dispatch(fetchCart());
+    }
+  }, [dispatch, isAuthenticated, user]);
 
-  // Save cart on unmount (when user navigates away)
+  // Save cart when items change (debounced)
   useEffect(() => {
-    // This function will be called when the component unmounts
-    return () => {
-      // Only save the cart if the user is logged in and the cart is not empty
-      if (user && items.length > 0) dispatch(saveCart());
-    };
-  }, [dispatch, user, items]); // Re-run effect if user or items change
+    if (isAuthenticated && items.length > 0) {
+      const timeoutId = setTimeout(() => {
+        dispatch(saveCart());
+      }, 1000); // Debounce for 1 second
 
-  const subtotal = items.reduce((sum, i) => sum + i.qty * +i.price, 0);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [dispatch, isAuthenticated, items]);
+
+  const subtotal = items.reduce((sum, i) => sum + i.qty * Number(i.price), 0);
+
+  if (status === "loading") {
+    return (
+      <main className='container mx-auto p-4 text-center'>
+        <div className='text-center'>Loading cart...</div>
+      </main>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -60,7 +71,7 @@ export default function CartPage() {
                 <div className='flex items-center gap-4'>
                   <div className='relative w-20 h-20 bg-gray-100 rounded'>
                     <Image
-                      src={item.image || "/images/placeholder.png"}
+                      src={item.image || "/placeholder.png"}
                       alt={item.name}
                       fill
                       style={{ objectFit: "contain" }}
@@ -69,7 +80,7 @@ export default function CartPage() {
                   <div>
                     <div className='font-semibold'>{item.name}</div>
                     <div className='text-sm text-gray-600'>
-                      ${(+item.price).toFixed(2)}
+                      ${Number(item.price).toFixed(2)}
                     </div>
                   </div>
                 </div>

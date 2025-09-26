@@ -21,14 +21,18 @@ export default function LoginPage() {
     console.log("Auth state changed:", { isAuthenticated, user, status });
 
     if (isAuthenticated && user) {
-      console.log("Redirecting user...");
+      console.log("User loaded:", user);
+      console.log("Is staff:", user.is_staff);
+
       if (user.is_staff) {
+        console.log("Redirecting to admin dashboard");
         router.push("/admin/dashboard");
       } else {
+        console.log("Redirecting to profile");
         router.push("/profile");
       }
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -10,18 +10,24 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
           <nav>
             <ul>
               <li className='mb-4'>
-                <Link href='/dashboard'>
-                  <a className='hover:text-gray-300'>Dashboard</a>
+                <Link
+                  href='/admin/dashboard'
+                  className='hover:text-gray-300'>
+                  Dashboard
                 </Link>
               </li>
               <li className='mb-4'>
-                <Link href='/dashboard/products'>
-                  <a className='hover:text-gray-300'>Products</a>
+                <Link
+                  href='/admin/products'
+                  className='hover:text-gray-300'>
+                  Products
                 </Link>
               </li>
               <li>
-                <Link href='/dashboard/orders'>
-                  <a className='hover:text-gray-300'>Orders</a>
+                <Link
+                  href='/admin/orders'
+                  className='hover:text-gray-300'>
+                  Orders
                 </Link>
               </li>
             </ul>

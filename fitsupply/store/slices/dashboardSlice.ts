@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { RootState } from "@/store";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+import api from "@/lib/apiClient";
 
 interface DashboardSummary {
   total_sales: number;
@@ -41,18 +40,22 @@ const initialState: DashboardState = {
 export const fetchDashboardSummary = createAsyncThunk(
   "dashboard/fetchSummary",
   async (_, { getState, rejectWithValue }) => {
-    const token = (getState() as RootState).auth.token;
-    if (!token) return rejectWithValue("Authentication token not found.");
-
     try {
-      // Assuming your backend has an endpoint for dashboard analytics
-      const response = await fetch(`${API_BASE_URL}api/v1/dashboard/summary/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch dashboard summary.");
-      return (await response.json()) as DashboardSummary;
+      const state = getState() as RootState;
+      const token = state.auth.token;
+
+      if (!token) {
+        return rejectWithValue("Authentication token not found.");
+      }
+
+      // Use api client which handles the base URL and auth headers
+      const response = await api.get("/dashboard/summary/");
+      return response.data as DashboardSummary;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      console.error("Dashboard summary error:", error.response?.data);
+      return rejectWithValue(
+        error.response?.data?.detail || "Failed to fetch dashboard summary."
+      );
     }
   }
 );
@@ -60,20 +63,21 @@ export const fetchDashboardSummary = createAsyncThunk(
 export const fetchRecentOrders = createAsyncThunk(
   "dashboard/fetchRecentOrders",
   async (_, { getState, rejectWithValue }) => {
-    const token = (getState() as RootState).auth.token;
-    if (!token) return rejectWithValue("Authentication token not found.");
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}api/v1/dashboard/recent-orders/`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (!response.ok) throw new Error("Failed to fetch recent orders.");
-      return (await response.json()) as Order[];
+      const state = getState() as RootState;
+      const token = state.auth.token;
+
+      if (!token) {
+        return rejectWithValue("Authentication token not found.");
+      }
+
+      const response = await api.get("/dashboard/recent-orders/");
+      return response.data as Order[];
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      console.error("Recent orders error:", error.response?.data);
+      return rejectWithValue(
+        error.response?.data?.detail || "Failed to fetch recent orders."
+      );
     }
   }
 );
@@ -81,22 +85,21 @@ export const fetchRecentOrders = createAsyncThunk(
 export const fetchSalesChartData = createAsyncThunk(
   "dashboard/fetchSalesChartData",
   async (_, { getState, rejectWithValue }) => {
-    const token = (getState() as RootState).auth.token;
-    if (!token) return rejectWithValue("Authentication token not found.");
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}api/v1/dashboard/sales-chart/`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch sales chart data.");
+      const state = getState() as RootState;
+      const token = state.auth.token;
+
+      if (!token) {
+        return rejectWithValue("Authentication token not found.");
       }
-      return (await response.json()) as SalesDataPoint[];
+
+      const response = await api.get("/dashboard/sales-chart/");
+      return response.data as SalesDataPoint[];
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      console.error("Sales chart error:", error.response?.data);
+      return rejectWithValue(
+        error.response?.data?.detail || "Failed to fetch sales chart data."
+      );
     }
   }
 );
@@ -104,38 +107,60 @@ export const fetchSalesChartData = createAsyncThunk(
 const dashboardSlice = createSlice({
   name: "dashboard",
   initialState,
-  reducers: {},
+  reducers: {
+    clearError: (state) => {
+      state.error = null;
+    },
+    resetDashboard: (state) => {
+      state.summary = null;
+      state.recentOrders = [];
+      state.salesChartData = [];
+      state.status = "idle";
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
+      // Dashboard Summary
       .addCase(fetchDashboardSummary.pending, (state) => {
         state.status = "loading";
+        state.error = null;
       })
-      .addCase(
-        fetchDashboardSummary.fulfilled,
-        (state, action: PayloadAction<DashboardSummary>) => {
-          state.status = "succeeded";
-          state.summary = action.payload;
-        }
-      )
+      .addCase(fetchDashboardSummary.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.summary = action.payload;
+        state.error = null;
+      })
       .addCase(fetchDashboardSummary.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload as string;
+      })
+
+      // Recent Orders
+      .addCase(fetchRecentOrders.pending, (state) => {
+        // Don't change main status for individual component loads
       })
       .addCase(fetchRecentOrders.fulfilled, (state, action) => {
         state.recentOrders = action.payload;
       })
       .addCase(fetchRecentOrders.rejected, (state, action) => {
-        // Log error but don't block the whole page
         console.error("Failed to fetch recent orders:", action.payload);
+        // Don't set main error state for component-level failures
+      })
+
+      // Sales Chart Data
+      .addCase(fetchSalesChartData.pending, (state) => {
+        // Don't change main status for individual component loads
       })
       .addCase(fetchSalesChartData.fulfilled, (state, action) => {
         state.salesChartData = action.payload;
       })
       .addCase(fetchSalesChartData.rejected, (state, action) => {
-        // Log error but don't block the whole page
         console.error("Failed to fetch sales chart data:", action.payload);
+        // Don't set main error state for component-level failures
       });
   },
 });
 
+export const { clearError, resetDashboard } = dashboardSlice.actions;
 export default dashboardSlice.reducer;

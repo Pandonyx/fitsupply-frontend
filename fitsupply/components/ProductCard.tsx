@@ -6,11 +6,9 @@ interface ProductCardProps {
   product: Product;
 }
 
-// It's best practice to store this in a .env.local file
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  // Use the first image as the primary, or a placeholder if none exist.
   const imageUrl = product.images?.[0]
     ? new URL(product.images[0], API_URL).href
     : "/placeholder.png";
@@ -22,8 +20,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           <Image
             src={imageUrl}
             alt={product.name}
-            layout='fill'
-            objectFit='cover'
+            fill
+            style={{ objectFit: "cover" }}
           />
         </div>
         <div className='p-4'>

@@ -40,24 +40,45 @@ const initialState: AuthState = {
 const parseDfrError = (error: any): string => {
   if (typeof error === "string") return error;
   if (error?.detail) return error.detail;
+  if (error?.non_field_errors) return error.non_field_errors.join(" ");
   if (error && typeof error === "object") {
-    const messages = Object.values(error).flat();
-    return messages.join(" ");
+    const messages = Object.values(error).flat().filter(Boolean);
+    return messages.length > 0 ? messages.join(" ") : "An error occurred";
   }
   return "An unknown error occurred.";
 };
 
-// Async thunk for login
+// Async thunk for login - try multiple common Django endpoints
 export const loginUser = createAsyncThunk<
   string,
   { username: string; password: string },
   { rejectValue: string }
 >("auth/login", async (credentials, { rejectWithValue }) => {
   try {
-    // Base URL is already http://127.0.0.1:8000/api/v1
-    // So just use /token/ here
-    const response = await api.post("/token/", credentials);
-    const token = response.data.access;
+    let response;
+
+    // Try common Django REST auth endpoints
+    try {
+      response = await api.post("/auth/login/", credentials);
+    } catch (firstError) {
+      try {
+        response = await api.post("/token/", credentials);
+      } catch (secondError) {
+        try {
+          response = await api.post("/auth/token/", credentials);
+        } catch (thirdError) {
+          // Try JWT token endpoint
+          response = await api.post("/api/token/", credentials);
+        }
+      }
+    }
+
+    const token =
+      response.data.access || response.data.token || response.data.access_token;
+
+    if (!token) {
+      return rejectWithValue("No token received from server");
+    }
 
     // Save token to localStorage
     if (typeof window !== "undefined") {
@@ -69,6 +90,7 @@ export const loginUser = createAsyncThunk<
 
     return token;
   } catch (error: any) {
+    console.error("Login error:", error.response?.data);
     return rejectWithValue(parseDfrError(error.response?.data));
   }
 });
@@ -87,9 +109,26 @@ export const fetchUser = createAsyncThunk<User, void, { rejectValue: string }>(
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       }
 
-      const response = await api.get("/user/");
+      let response;
+
+      // Try common Django user profile endpoints
+      try {
+        response = await api.get("/auth/user/");
+      } catch (firstError) {
+        try {
+          response = await api.get("/user/");
+        } catch (secondError) {
+          try {
+            response = await api.get("/users/me/");
+          } catch (thirdError) {
+            response = await api.get("/auth/users/me/");
+          }
+        }
+      }
+
       return response.data;
     } catch (error: any) {
+      console.error("Fetch user error:", error.response?.data);
       return rejectWithValue(
         error.response?.data?.detail || "Failed to fetch user details"
       );
@@ -115,8 +154,30 @@ export const registerUser = createAsyncThunk<
     const originalAuthHeader = api.defaults.headers.common["Authorization"];
     delete api.defaults.headers.common["Authorization"];
 
-    const response = await api.post("/register/", userData);
-    const token = response.data.access_token;
+    let response;
+
+    // Try common Django registration endpoints
+    try {
+      response = await api.post("/auth/register/", userData);
+    } catch (firstError) {
+      try {
+        response = await api.post("/register/", userData);
+      } catch (secondError) {
+        try {
+          response = await api.post("/auth/users/", userData);
+        } catch (thirdError) {
+          response = await api.post("/users/", userData);
+        }
+      }
+    }
+
+    const token =
+      response.data.access_token || response.data.access || response.data.token;
+    const user = response.data.user || response.data;
+
+    if (!token) {
+      return rejectWithValue("No token received from registration");
+    }
 
     // Save token to localStorage
     if (typeof window !== "undefined") {
@@ -126,8 +187,9 @@ export const registerUser = createAsyncThunk<
     // Set token in API client for future requests
     api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-    return response.data; // Contains { user, access_token }
+    return { user, access_token: token };
   } catch (error: any) {
+    console.error("Registration error:", error.response?.data);
     return rejectWithValue(parseDfrError(error.response?.data));
   } finally {
     // Restore the original auth header after the request is complete
@@ -152,13 +214,31 @@ export const initializeAuth = createAsyncThunk<
   api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
   try {
-    const response = await api.get("/user/");
+    let response;
+
+    // Try common Django user profile endpoints
+    try {
+      response = await api.get("/auth/user/");
+    } catch (firstError) {
+      try {
+        response = await api.get("/user/");
+      } catch (secondError) {
+        try {
+          response = await api.get("/users/me/");
+        } catch (thirdError) {
+          response = await api.get("/auth/users/me/");
+        }
+      }
+    }
+
     return response.data;
   } catch (error: any) {
+    console.error("Initialize auth error:", error.response?.data);
     // Token is invalid, clear it
     if (typeof window !== "undefined") {
       localStorage.removeItem("token");
     }
+    delete api.defaults.headers.common["Authorization"];
     return rejectWithValue("Invalid token");
   }
 });
@@ -180,6 +260,9 @@ const authSlice = createSlice({
       }
       delete api.defaults.headers.common["Authorization"];
     },
+    clearError: (state) => {
+      state.error = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -190,27 +273,37 @@ const authSlice = createSlice({
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.token = action.payload; // payload is the token string
+        state.token = action.payload;
         state.isAuthenticated = true;
+        state.error = null;
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload || "Login failed";
+        state.isAuthenticated = false;
+        state.token = null;
       })
 
       // FETCH USER
       .addCase(fetchUser.pending, (state) => {
-        state.status = "loading";
+        // Don't set status to loading for user fetch to avoid UI flicker
       })
       .addCase(fetchUser.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.user = action.payload;
         state.isAuthenticated = true;
+        state.error = null;
       })
       .addCase(fetchUser.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload || "Failed to fetch user";
         state.isAuthenticated = false;
+        state.user = null;
+        state.token = null;
+        // Clear invalid token
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("token");
+        }
       })
 
       // REGISTER
@@ -223,10 +316,12 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.access_token;
         state.isAuthenticated = true;
+        state.error = null;
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload || "Registration failed";
+        state.isAuthenticated = false;
       })
 
       // INITIALIZE AUTH
@@ -237,14 +332,17 @@ const authSlice = createSlice({
         state.status = "succeeded";
         state.user = action.payload;
         state.isAuthenticated = true;
+        state.error = null;
       })
       .addCase(initializeAuth.rejected, (state) => {
         state.status = "idle";
         state.token = null;
         state.isAuthenticated = false;
+        state.user = null;
+        state.error = null;
       });
   },
 });
 
-export const { logout } = authSlice.actions;
+export const { logout, clearError } = authSlice.actions;
 export default authSlice.reducer;
