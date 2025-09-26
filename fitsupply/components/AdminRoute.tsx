@@ -1,32 +1,27 @@
-import { useEffect } from "react";
 import { useSelector } from "react-redux";
-import { useRouter } from "next/router";
 import { RootState } from "@/store";
+import { useRouter } from "next/router";
+import { useEffect } from "react";
 
-const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, user, status } = useSelector(
+export default function AdminRoute({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { user, isAuthenticated } = useSelector(
     (state: RootState) => state.auth
   );
   const router = useRouter();
 
   useEffect(() => {
-    // If auth state is still loading, do nothing yet.
-    if (status === "loading") {
-      return;
-    }
-
-    // If not authenticated or the user is not staff, redirect to login.
-    if (!isAuthenticated || (user && !user.is_staff)) {
+    if (!isAuthenticated) {
       router.push("/login");
+    } else if (user && !user.is_staff) {
+      router.push("/"); // send non-admins home
     }
-  }, [isAuthenticated, user, status, router]);
+  }, [user, isAuthenticated, router]);
 
-  // While loading or if user is not yet confirmed as staff, show a loading indicator.
-  if (status === "loading" || !user || !user.is_staff) {
-    return <div>Loading Admin Access...</div>;
-  }
+  if (!user) return null;
 
   return <>{children}</>;
-};
-
-export default AdminRoute;
+}

@@ -1,13 +1,36 @@
 import { useSelector, useDispatch } from "react-redux";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import { RootState, AppDispatch } from "@/store";
-import { removeFromCart, updateQty } from "@/store/slices/cartSlice";
+import {
+  removeFromCart,
+  updateQty,
+  fetchCart,
+  saveCart,
+} from "@/store/slices/cartSlice";
 import { FaTrash } from "react-icons/fa";
 
 export default function CartPage() {
   const { items } = useSelector((s: RootState) => s.cart);
+  const { user } = useSelector((s: RootState) => s.auth);
   const dispatch = useDispatch<AppDispatch>();
+  const isInitialMount = useRef(true);
+
+  // Fetch cart on mount
+  useEffect(() => {
+    if (user) dispatch(fetchCart());
+  }, [dispatch, user]);
+
+  // Save cart on unmount (when user navigates away)
+  useEffect(() => {
+    // This function will be called when the component unmounts
+    return () => {
+      // Only save the cart if the user is logged in and the cart is not empty
+      if (user && items.length > 0) dispatch(saveCart());
+    };
+  }, [dispatch, user, items]); // Re-run effect if user or items change
+
   const subtotal = items.reduce((sum, i) => sum + i.qty * +i.price, 0);
 
   if (items.length === 0) {

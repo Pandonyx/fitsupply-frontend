@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
-import { fetchRecentOrders } from "@/pages/dashboard/dashboardSlice";
+import { fetchRecentOrders } from "@/store/slices/dashboardSlice";
 
 const RecentOrders = () => {
   const dispatch = useDispatch<AppDispatch>();

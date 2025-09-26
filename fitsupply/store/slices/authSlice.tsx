@@ -8,8 +8,8 @@ interface User {
   username: string;
   first_name: string;
   last_name: string;
-  name?: string; // Keep for compatibility if used elsewhere, but prefer new fields
-  is_staff?: boolean; // Important for admin access later
+  name?: string;
+  is_staff?: boolean;
 }
 
 interface AuthState {
@@ -20,86 +20,73 @@ interface AuthState {
   error: string | null;
 }
 
+// Load token from localStorage on initialization
+const loadTokenFromStorage = (): string | null => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("token");
+  }
+  return null;
+};
+
 const initialState: AuthState = {
   user: null,
-  token: null,
+  token: loadTokenFromStorage(),
   isAuthenticated: false,
   status: "idle",
   error: null,
 };
 
-/**
- * Parses a Django REST Framework error response into a single string.
- * @param error The error object from the API response.
- * @returns A user-friendly error string.
- */
+// Parse DRF errors
 const parseDfrError = (error: any): string => {
-  if (typeof error === "string") {
-    return error;
-  }
+  if (typeof error === "string") return error;
+  if (error?.detail) return error.detail;
   if (error && typeof error === "object") {
-    // Handle common 'detail' key for auth errors
-    if (error.detail) {
-      return error.detail;
-    }
-    // Handle validation errors (field-specific)
     const messages = Object.values(error).flat();
     return messages.join(" ");
   }
   return "An unknown error occurred.";
 };
-// Async thunk for user login
-export const loginUser = createAsyncThunk(
-  "auth/login",
-  async (
-    credentials: { username: string; password: string },
-    { rejectWithValue }
-  ) => {
-    try {
-      const response = await api.post("/token/", credentials);
-      // With simple-jwt, the user object is not returned on login.
-      // We get the token, then we can fetch the user.
-      const { access } = response.data;
-      // We don't have the user data yet, just the token.
-      // The user data will be fetched in the fulfilled case.
-      // We return the access token to be stored in the state.
-      return { token: access };
-    } catch (error: any) {
-      return rejectWithValue(parseDfrError(error.response?.data));
-    }
-  }
-);
 
-// Async thunk for user registration
-export const registerUser = createAsyncThunk(
-  "auth/register",
-  async (
-    userData: {
-      username: string;
-      email: string;
-      password: string;
-      password2: string;
-      first_name: string;
-      last_name: string;
-    },
-    { rejectWithValue }
-  ) => {
-    try {
-      const response = await api.post("/register/", userData);
-      // Assuming the API returns { token, user } upon successful registration
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(parseDfrError(error.response?.data));
-    }
-  }
-);
+// Async thunk for login
+export const loginUser = createAsyncThunk<
+  string,
+  { username: string; password: string },
+  { rejectValue: string }
+>("auth/login", async (credentials, { rejectWithValue }) => {
+  try {
+    // Base URL is already http://127.0.0.1:8000/api/v1
+    // So just use /token/ here
+    const response = await api.post("/token/", credentials);
+    const token = response.data.access;
 
-// Async thunk to fetch user details using the token
-export const fetchUser = createAsyncThunk(
+    // Save token to localStorage
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", token);
+    }
+
+    // Set token in API client for future requests
+    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+    return token;
+  } catch (error: any) {
+    return rejectWithValue(parseDfrError(error.response?.data));
+  }
+});
+
+// Async thunk to fetch user
+export const fetchUser = createAsyncThunk<User, void, { rejectValue: string }>(
   "auth/fetchUser",
   async (_, { rejectWithValue, getState }) => {
     try {
-      // The interceptor in apiClient will add the token to the header
+      // Get token from state
+      const state = getState() as { auth: AuthState };
+      const token = state.auth.token;
+
+      // Ensure token is set in headers
+      if (token) {
+        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await api.get("/user/");
       return response.data;
     } catch (error: any) {
@@ -110,6 +97,72 @@ export const fetchUser = createAsyncThunk(
   }
 );
 
+// Async thunk for registration
+export const registerUser = createAsyncThunk<
+  { user: User; access_token: string },
+  {
+    username: string;
+    email: string;
+    password: string;
+    password2: string;
+    first_name: string;
+    last_name: string;
+  },
+  { rejectValue: string }
+>("auth/register", async (userData, { rejectWithValue }) => {
+  try {
+    // Temporarily remove auth header for this public endpoint
+    const originalAuthHeader = api.defaults.headers.common["Authorization"];
+    delete api.defaults.headers.common["Authorization"];
+
+    const response = await api.post("/register/", userData);
+    const token = response.data.access_token;
+
+    // Save token to localStorage
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", token);
+    }
+
+    // Set token in API client for future requests
+    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+    return response.data; // Contains { user, access_token }
+  } catch (error: any) {
+    return rejectWithValue(parseDfrError(error.response?.data));
+  } finally {
+    // Restore the original auth header after the request is complete
+    if (originalAuthHeader) {
+      api.defaults.headers.common["Authorization"] = originalAuthHeader;
+    }
+  }
+});
+
+// Thunk to initialize auth from stored token
+export const initializeAuth = createAsyncThunk<
+  User,
+  void,
+  { rejectValue: string }
+>("auth/initialize", async (_, { rejectWithValue }) => {
+  const token = loadTokenFromStorage();
+  if (!token) {
+    return rejectWithValue("No token found");
+  }
+
+  // Set token in API client
+  api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+  try {
+    const response = await api.get("/user/");
+    return response.data;
+  } catch (error: any) {
+    // Token is invalid, clear it
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token");
+    }
+    return rejectWithValue("Invalid token");
+  }
+});
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -119,54 +172,76 @@ const authSlice = createSlice({
       state.token = null;
       state.isAuthenticated = false;
       state.status = "idle";
+      state.error = null;
+
+      // Clear token from localStorage and API client
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("token");
+      }
+      delete api.defaults.headers.common["Authorization"];
     },
   },
   extraReducers: (builder) => {
     builder
+      // LOGIN
       .addCase(loginUser.pending, (state) => {
         state.status = "loading";
         state.error = null;
       })
-      .addCase(
-        loginUser.fulfilled,
-        (state, action: PayloadAction<{ token: string }>) => {
-          state.status = "succeeded"; // Or 'loading' while we fetch the user
-          state.token = action.payload.token;
-          state.isAuthenticated = true;
-          // User object is not part of the payload anymore, will be fetched by fetchUser
-        }
-      )
+      .addCase(loginUser.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.token = action.payload; // payload is the token string
+        state.isAuthenticated = true;
+      })
       .addCase(loginUser.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.payload as string;
+        state.error = action.payload || "Login failed";
       })
-      .addCase(fetchUser.fulfilled, (state, action: PayloadAction<User>) => {
+
+      // FETCH USER
+      .addCase(fetchUser.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(fetchUser.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.user = action.payload;
+        state.isAuthenticated = true;
       })
       .addCase(fetchUser.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.payload as string;
+        state.error = action.payload || "Failed to fetch user";
+        state.isAuthenticated = false;
       })
+
+      // REGISTER
       .addCase(registerUser.pending, (state) => {
         state.status = "loading";
         state.error = null;
       })
-      .addCase(
-        registerUser.fulfilled,
-        (
-          state,
-          action: PayloadAction<{ user: User; access_token: string }>
-        ) => {
-          state.status = "succeeded";
-          state.user = action.payload.user;
-          state.token = action.payload.access_token; // dj-rest-auth often returns access_token
-          state.isAuthenticated = true;
-        }
-      )
+      .addCase(registerUser.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.user = action.payload.user;
+        state.token = action.payload.access_token;
+        state.isAuthenticated = true;
+      })
       .addCase(registerUser.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.payload as string;
+        state.error = action.payload || "Registration failed";
+      })
+
+      // INITIALIZE AUTH
+      .addCase(initializeAuth.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(initializeAuth.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.user = action.payload;
+        state.isAuthenticated = true;
+      })
+      .addCase(initializeAuth.rejected, (state) => {
+        state.status = "idle";
+        state.token = null;
+        state.isAuthenticated = false;
       });
   },
 });

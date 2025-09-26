@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { AppDispatch, RootState } from "@/store";
-import { loginUser, fetchUser } from "@/components/authSlice";
+import { loginUser, fetchUser } from "@/store/slices/authSlice";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -12,22 +12,39 @@ export default function LoginPage() {
   const router = useRouter();
 
   const isRegistered = router.query.registered === "true";
-  const { isAuthenticated, status, error } = useSelector(
+  const { user, isAuthenticated, status, error } = useSelector(
     (state: RootState) => state.auth
   );
 
+  // Separate useEffect for redirect logic
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/profile");
+    console.log("Auth state changed:", { isAuthenticated, user, status });
+
+    if (isAuthenticated && user) {
+      console.log("Redirecting user...");
+      if (user.is_staff) {
+        router.push("/admin/dashboard");
+      } else {
+        router.push("/profile");
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Starting login...");
+
     const resultAction = await dispatch(loginUser({ username, password }));
+    console.log("Login result:", resultAction);
+
     if (loginUser.fulfilled.match(resultAction)) {
-      // After a successful login, fetch the user's profile data.
-      dispatch(fetchUser());
+      console.log("Login successful, token:", resultAction.payload);
+      console.log("Fetching user...");
+
+      const userResult = await dispatch(fetchUser());
+      console.log("Fetch user result:", userResult);
+    } else {
+      console.error("Login failed:", resultAction);
     }
   };
 

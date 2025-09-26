@@ -2,7 +2,7 @@ import AdminLayout from "@/components/AdminLayout";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "@/store";
-import { fetchDashboardSummary } from "@/pages/dashboard/dashboardSlice";
+import { fetchDashboardSummary } from "@/store/slices/dashboardSlice";
 import SummaryCards from "@/components/dashboard/SummaryCards";
 import SalesChart from "@/components/dashboard/SalesChart";
 import RecentOrders from "@/components/dashboard/RecentOrders";

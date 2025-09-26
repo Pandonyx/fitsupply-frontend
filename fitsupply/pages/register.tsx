@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { AppDispatch, RootState } from "@/store";
-import { registerUser, loginUser, fetchUser } from "@/components/authSlice";
+import { registerUser, loginUser, fetchUser } from "@/store/slices/authSlice";
 
 export default function RegisterPage() {
   const [username, setUsername] = useState("");

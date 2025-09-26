@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { AppDispatch, RootState } from "@/store";
-import { fetchSalesChartData } from "@/pages/dashboard/dashboardSlice";
+import { fetchSalesChartData } from "@/store/slices/dashboardSlice";
 
 const SalesChart = () => {
   const dispatch = useDispatch<AppDispatch>();
