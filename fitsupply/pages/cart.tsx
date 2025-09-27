@@ -18,10 +18,11 @@ export default function CartPage() {
 
   // Fetch cart from server when user logs in
   useEffect(() => {
-    if (isAuthenticated && user) {
+    // Only fetch from server if we don't have local items
+    if (isAuthenticated && user && items.length === 0 && status === "idle") {
       dispatch(fetchCart());
     }
-  }, [dispatch, isAuthenticated, user]);
+  }, [dispatch, isAuthenticated, user, items.length, status]);
 
   // Save cart when items change (debounced)
   useEffect(() => {

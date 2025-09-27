@@ -1,3 +1,4 @@
+// pages/dashboard/admin/index.tsx
 import AdminLayout from "@/components/AdminLayout";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
@@ -6,6 +7,8 @@ import { fetchDashboardSummary } from "@/store/slices/dashboardSlice";
 import SummaryCards from "@/components/dashboard/SummaryCards";
 import SalesChart from "@/components/dashboard/SalesChart";
 import RecentOrders from "@/components/dashboard/RecentOrders";
+import TopProducts from "@/components/dashboard/TopProducts";
+import RecentActivity from "@/components/dashboard/RecentActivity";
 
 const AdminDashboardPage = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -40,48 +43,71 @@ const AdminDashboardPage = () => {
           <div className='space-y-6'>
             <div className='bg-white p-6 rounded-lg shadow'>
               <h3 className='text-lg font-medium text-gray-900 mb-4'>
-                Quick Stats
+                Order Status Overview
               </h3>
               <div className='space-y-4'>
                 <div className='flex justify-between items-center'>
-                  <span className='text-sm text-gray-600'>Products</span>
-                  <span className='text-sm font-medium text-gray-900'>124</span>
+                  <div className='flex items-center'>
+                    <div className='w-3 h-3 bg-yellow-400 rounded-full mr-2'></div>
+                    <span className='text-sm text-gray-600'>Pending</span>
+                  </div>
+                  <span className='text-sm font-medium text-gray-900'>12</span>
                 </div>
                 <div className='flex justify-between items-center'>
-                  <span className='text-sm text-gray-600'>Categories</span>
+                  <div className='flex items-center'>
+                    <div className='w-3 h-3 bg-blue-400 rounded-full mr-2'></div>
+                    <span className='text-sm text-gray-600'>Processing</span>
+                  </div>
                   <span className='text-sm font-medium text-gray-900'>8</span>
                 </div>
                 <div className='flex justify-between items-center'>
-                  <span className='text-sm text-gray-600'>Total Customers</span>
-                  <span className='text-sm font-medium text-gray-900'>
-                    1,234
-                  </span>
+                  <div className='flex items-center'>
+                    <div className='w-3 h-3 bg-orange-400 rounded-full mr-2'></div>
+                    <span className='text-sm text-gray-600'>Shipped</span>
+                  </div>
+                  <span className='text-sm font-medium text-gray-900'>15</span>
                 </div>
                 <div className='flex justify-between items-center'>
-                  <span className='text-sm text-gray-600'>
-                    Avg. Order Value
-                  </span>
-                  <span className='text-sm font-medium text-gray-900'>
-                    $87.50
-                  </span>
+                  <div className='flex items-center'>
+                    <div className='w-3 h-3 bg-green-400 rounded-full mr-2'></div>
+                    <span className='text-sm text-gray-600'>Delivered</span>
+                  </div>
+                  <span className='text-sm font-medium text-gray-900'>34</span>
                 </div>
               </div>
             </div>
 
             <div className='bg-white p-6 rounded-lg shadow'>
               <h3 className='text-lg font-medium text-gray-900 mb-4'>
-                Quick Actions
+                Inventory Alerts
               </h3>
               <div className='space-y-3'>
-                <button className='w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors'>
-                  Add New Product
-                </button>
-                <button className='w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors'>
-                  Process Orders
-                </button>
-                <button className='w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors'>
-                  View Analytics
-                </button>
+                <div className='flex items-center justify-between p-3 bg-red-50 rounded-lg'>
+                  <div>
+                    <p className='text-sm font-medium text-red-800'>
+                      Low Stock
+                    </p>
+                    <p className='text-xs text-red-600'>
+                      3 products below threshold
+                    </p>
+                  </div>
+                  <button className='text-red-600 hover:text-red-800 text-sm font-medium'>
+                    View
+                  </button>
+                </div>
+                <div className='flex items-center justify-between p-3 bg-yellow-50 rounded-lg'>
+                  <div>
+                    <p className='text-sm font-medium text-yellow-800'>
+                      Out of Stock
+                    </p>
+                    <p className='text-xs text-yellow-600'>
+                      1 product unavailable
+                    </p>
+                  </div>
+                  <button className='text-yellow-600 hover:text-yellow-800 text-sm font-medium'>
+                    View
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -93,86 +119,10 @@ const AdminDashboardPage = () => {
         {/* Additional Dashboard Widgets */}
         <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
           {/* Top Products */}
-          <div className='bg-white p-6 rounded-lg shadow'>
-            <h3 className='text-lg font-medium text-gray-900 mb-4'>
-              Top Selling Products
-            </h3>
-            <div className='space-y-3'>
-              {[
-                { name: "Whey Protein Powder", sales: 45 },
-                { name: "Creatine Monohydrate", sales: 32 },
-                { name: "BCAA Supplement", sales: 28 },
-                { name: "Pre-Workout Formula", sales: 24 },
-                { name: "Multivitamin", sales: 19 },
-              ].map((product, index) => (
-                <div
-                  key={index}
-                  className='flex justify-between items-center'>
-                  <span className='text-sm text-gray-900'>{product.name}</span>
-                  <span className='text-sm font-medium text-gray-600'>
-                    {product.sales} sold
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <TopProducts />
 
           {/* Recent Activity */}
-          <div className='bg-white p-6 rounded-lg shadow'>
-            <h3 className='text-lg font-medium text-gray-900 mb-4'>
-              Recent Activity
-            </h3>
-            <div className='space-y-3'>
-              {[
-                {
-                  action: "New order received",
-                  time: "2 minutes ago",
-                  type: "order",
-                },
-                {
-                  action: "Product stock updated",
-                  time: "15 minutes ago",
-                  type: "product",
-                },
-                {
-                  action: "Customer registered",
-                  time: "1 hour ago",
-                  type: "customer",
-                },
-                {
-                  action: "Payment processed",
-                  time: "2 hours ago",
-                  type: "payment",
-                },
-                {
-                  action: "Review submitted",
-                  time: "3 hours ago",
-                  type: "review",
-                },
-              ].map((activity, index) => (
-                <div
-                  key={index}
-                  className='flex items-start space-x-3'>
-                  <div
-                    className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${
-                      activity.type === "order"
-                        ? "bg-green-400"
-                        : activity.type === "product"
-                        ? "bg-blue-400"
-                        : activity.type === "customer"
-                        ? "bg-purple-400"
-                        : activity.type === "payment"
-                        ? "bg-yellow-400"
-                        : "bg-gray-400"
-                    }`}></div>
-                  <div className='flex-1 min-w-0'>
-                    <p className='text-sm text-gray-900'>{activity.action}</p>
-                    <p className='text-xs text-gray-500'>{activity.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <RecentActivity />
         </div>
       </div>
     </AdminLayout>

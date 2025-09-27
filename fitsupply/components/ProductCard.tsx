@@ -26,7 +26,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
         <div className='p-4'>
           <h2 className='text-lg font-semibold truncate'>{product.name}</h2>
-          <p className='text-gray-500'>{product.category}</p>
+          <p className='text-gray-500'>
+            {product.category?.name || "Uncategorized"}
+          </p>
           <p className='text-xl font-bold mt-2'>
             ${Number(product.price).toFixed(2)}
           </p>

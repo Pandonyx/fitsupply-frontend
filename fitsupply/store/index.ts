@@ -14,11 +14,12 @@ const cartPersistConfig = {
   whitelist: ["items"],
 };
 
-// Auth persistence configuration
+// Auth persistence configuration - ONLY persist token, not the whole state
 const authPersistConfig = {
   key: "auth",
   storage,
-  whitelist: ["token"],
+  whitelist: ["token", "user"], // Only persist these fields
+  blacklist: ["status", "error"], // Don't persist these
 };
 
 const rootReducer = combineReducers({
@@ -39,6 +40,12 @@ export const store = configureStore({
           "persist/PAUSE",
           "persist/PURGE",
           "persist/REGISTER",
+          "auth/register/pending",
+          "auth/register/fulfilled",
+          "auth/register/rejected",
+          "auth/login/pending",
+          "auth/login/fulfilled",
+          "auth/login/rejected",
         ],
       },
     }),

@@ -5,6 +5,11 @@ import { fetchProducts } from "@/store/slices/productSlice";
 import type { RootState, AppDispatch } from "@/store";
 import ProductCard from "@/components/ProductCard";
 
+interface Category {
+  id: string | number;
+  name: string;
+}
+
 export default function ProductsPage() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
@@ -12,44 +17,136 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState("featured");
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  const API_BASE_URL =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   useEffect(() => {
     dispatch(fetchProducts());
+    fetchCategories();
   }, [dispatch]);
+
+  // Fetch categories from backend
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/categories/`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (response.ok) {
+        const categoriesData = await response.json();
+        console.log("Categories from API:", categoriesData);
+        setCategories(categoriesData.results || categoriesData);
+      } else {
+        console.log("Categories endpoint failed, extracting from products");
+        // Fallback: extract unique categories from products
+        extractCategoriesFromProducts();
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      console.log("Using fallback: extracting from products");
+      // Fallback: extract unique categories from products
+      extractCategoriesFromProducts();
+    }
+  };
+
+  // Fallback method to extract categories from products
+  const extractCategoriesFromProducts = () => {
+    if (!items || items.length === 0) return;
+
+    console.log("Extracting categories from products:", items);
+
+    const uniqueCategories = [
+      ...new Map(
+        items
+          .map((p) => {
+            console.log(
+              "Product category:",
+              p.category,
+              "Type:",
+              typeof p.category
+            );
+            // Handle both object and string category formats
+            if (typeof p.category === "object" && p.category?.name) {
+              return { id: p.category.id, name: p.category.name };
+            }
+            if (typeof p.category === "string" && p.category.trim() !== "") {
+              return { id: p.category, name: p.category };
+            }
+            return null;
+          })
+          .filter(Boolean)
+          .map((cat) => [cat!.name, cat!]) // Use name as key to avoid duplicates
+      ).values(),
+    ];
+
+    console.log("Extracted categories:", uniqueCategories);
+    setCategories(uniqueCategories);
+  };
+
+  // Extract categories from products when items change (fallback)
+  useEffect(() => {
+    if (items.length > 0 && categories.length === 0) {
+      extractCategoriesFromProducts();
+    }
+  }, [items]);
 
   // Handle URL category parameter
   useEffect(() => {
     const { category } = router.query;
     if (category && typeof category === "string") {
-      setSelectedCategory(category);
+      setSelectedCategory(decodeURIComponent(category));
     }
   }, [router.query]);
 
-  // Get unique categories from products
-  const categories = useMemo(() => {
-    if (!items) return [];
-    const uniqueCategories = [
-      ...new Set(
-        items.map((p) => p.category?.name || p.category).filter(Boolean)
-      ),
-    ];
-    return ["All", ...uniqueCategories];
-  }, [items]);
+  // Helper function to get category name consistently
+  const getCategoryName = (product: any): string => {
+    if (typeof product.category === "object" && product.category?.name) {
+      return product.category.name;
+    }
+    if (typeof product.category === "string") {
+      return product.category;
+    }
+    return "Uncategorized";
+  };
+
+  // Helper function to get category ID consistently
+  const getCategoryId = (product: any): string | number => {
+    if (typeof product.category === "object" && product.category?.id) {
+      return product.category.id;
+    }
+    if (typeof product.category === "string") {
+      return product.category;
+    }
+    return "uncategorized";
+  };
+
+  // Create category list for display
+  const displayCategories = useMemo(() => {
+    const categoryList = ["All", ...categories.map((cat) => cat.name)];
+    return [...new Set(categoryList)]; // Remove duplicates
+  }, [categories]);
 
   // Filter and sort products based on search, category, and sort option
   const filteredItems = useMemo(() => {
     let filtered = items
       .filter((product) => {
-        // Filter by search term
+        // Filter by search term - add null/undefined checks
+        const productName = product.name || "";
+        const productDescription = product.description || "";
+
         const matchesSearch =
-          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.description.toLowerCase().includes(searchTerm.toLowerCase());
+          productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          productDescription.toLowerCase().includes(searchTerm.toLowerCase());
         return matchesSearch;
       })
       .filter((product) => {
         // Filter by category
         if (selectedCategory === "All") return true;
-        const productCategory = product.category?.name || product.category;
+        const productCategory = getCategoryName(product);
         return productCategory === selectedCategory;
       });
 
@@ -65,8 +162,12 @@ export default function ProductsPage() {
         return filtered.sort((a, b) => b.name.localeCompare(a.name));
       case "featured":
       default:
-        // Keep original order or sort by featured status if available
-        return filtered;
+        // Sort by featured status if available, then by original order
+        return filtered.sort((a, b) => {
+          if (a.is_featured && !b.is_featured) return -1;
+          if (!a.is_featured && b.is_featured) return 1;
+          return 0;
+        });
     }
   }, [items, searchTerm, selectedCategory, sortBy]);
 
@@ -74,17 +175,23 @@ export default function ProductsPage() {
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
     // Update URL without page reload
-    const query = category === "All" ? {} : { category };
-    router.push({ pathname: "/products", query }, undefined, { shallow: true });
+    if (category === "All") {
+      router.push("/products", undefined, { shallow: true });
+    } else {
+      router.push(
+        `/products/category/${encodeURIComponent(category)}`,
+        undefined,
+        { shallow: true }
+      );
+    }
   };
 
   // Get category counts for display
   const categoryCounts = useMemo(() => {
     const counts: { [key: string]: number } = {};
     items.forEach((product) => {
-      const category =
-        product.category?.name || product.category || "Uncategorized";
-      counts[category] = (counts[category] || 0) + 1;
+      const categoryName = getCategoryName(product);
+      counts[categoryName] = (counts[categoryName] || 0) + 1;
     });
     return counts;
   }, [items]);
@@ -131,7 +238,7 @@ export default function ProductsPage() {
                   Categories
                 </h3>
                 <div className='space-y-2'>
-                  {categories.map((category) => {
+                  {displayCategories.map((category) => {
                     const count =
                       category === "All"
                         ? items.length
