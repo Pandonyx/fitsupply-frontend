@@ -4,6 +4,87 @@ import { useRouter } from "next/router";
 import Image from "next/image";
 import { AppDispatch, RootState } from "@/store";
 import { logout, updateProfile } from "@/store/slices/authSlice";
+import { fetchUserOrders } from "@/store/slices/orderSlice";
+
+interface PaymentModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+function PaymentMethodModal({ isOpen, onClose }: PaymentModalProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+      <div className='bg-white rounded-lg p-6 max-w-md w-full mx-4'>
+        <div className='flex justify-between items-center mb-4'>
+          <h2 className='text-xl font-bold text-gray-900'>Payment Methods</h2>
+          <button
+            onClick={onClose}
+            className='text-gray-400 hover:text-gray-600'>
+            <svg
+              className='w-6 h-6'
+              fill='none'
+              stroke='currentColor'
+              viewBox='0 0 24 24'>
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                strokeWidth={2}
+                d='M6 18L18 6M6 6l12 12'
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div className='text-center py-8'>
+          <div className='w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center'>
+            <svg
+              className='w-8 h-8 text-gray-400'
+              fill='none'
+              stroke='currentColor'
+              viewBox='0 0 24 24'>
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                strokeWidth={2}
+                d='M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 003 3z'
+              />
+            </svg>
+          </div>
+
+          <h3 className='text-lg font-medium text-gray-900 mb-2'>
+            Payment Methods Coming Soon
+          </h3>
+
+          <p className='text-gray-600 mb-6'>
+            This feature will be available in the full production version of
+            FitSupply. We'll support major credit cards, PayPal, and other
+            secure payment options.
+          </p>
+
+          <div className='bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6'>
+            <p className='text-sm text-blue-800'>
+              <strong>Future Features:</strong>
+              <br />• Credit & Debit Cards
+              <br />• PayPal Integration
+              <br />• Apple Pay & Google Pay
+              <br />• Secure Payment Processing
+            </p>
+          </div>
+        </div>
+
+        <div className='flex justify-end'>
+          <button
+            onClick={onClose}
+            className='bg-black text-white px-6 py-2 rounded-md hover:bg-gray-800 transition-colors'>
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -11,9 +92,15 @@ export default function ProfilePage() {
   const { user, isAuthenticated, status } = useSelector(
     (state: RootState) => state.auth
   );
+  const {
+    orders,
+    status: orderStatus,
+    error: orderError,
+  } = useSelector((state: RootState) => state.orders);
 
   const [activeTab, setActiveTab] = useState("profile");
   const [isEditing, setIsEditing] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [profileData, setProfileData] = useState({
     first_name: "",
     last_name: "",
@@ -42,6 +129,13 @@ export default function ProfilePage() {
       }
     }
   }, [isAuthenticated, user, router]);
+
+  // Fetch orders when orders tab is selected
+  useEffect(() => {
+    if (activeTab === "orders" && isAuthenticated) {
+      dispatch(fetchUserOrders());
+    }
+  }, [activeTab, isAuthenticated, dispatch]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -270,36 +364,121 @@ export default function ProfilePage() {
     </div>
   );
 
-  const OrdersContent = () => (
-    <div className='space-y-6'>
-      <h2 className='text-2xl font-semibold text-gray-800'>Order History</h2>
-      <div className='bg-gray-50 p-8 rounded-lg text-center'>
-        <svg
-          className='mx-auto h-12 w-12 text-gray-400 mb-4'
-          fill='none'
-          viewBox='0 0 24 24'
-          stroke='currentColor'>
-          <path
-            strokeLinecap='round'
-            strokeLinejoin='round'
-            strokeWidth={2}
-            d='M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z'
-          />
-        </svg>
-        <h3 className='text-lg font-medium text-gray-900 mb-2'>
-          No orders yet
-        </h3>
-        <p className='text-gray-500 mb-4'>
-          When you make your first purchase, your orders will appear here.
-        </p>
-        <button
-          onClick={() => router.push("/products")}
-          className='bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors'>
-          Start Shopping
-        </button>
+  const OrdersContent = () => {
+    if (orderStatus === "loading") {
+      return (
+        <div className='flex justify-center items-center py-12'>
+          <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
+          <span className='ml-2 text-gray-600'>Loading orders...</span>
+        </div>
+      );
+    }
+
+    if (orderError) {
+      return (
+        <div className='bg-red-50 border border-red-200 rounded-lg p-4'>
+          <p className='text-red-800'>Error loading orders: {orderError}</p>
+        </div>
+      );
+    }
+
+    if (!orders || orders.length === 0) {
+      return (
+        <div className='space-y-6'>
+          <h2 className='text-2xl font-semibold text-gray-800'>
+            Order History
+          </h2>
+          <div className='bg-gray-50 p-8 rounded-lg text-center'>
+            <svg
+              className='mx-auto h-12 w-12 text-gray-400 mb-4'
+              fill='none'
+              viewBox='0 0 24 24'
+              stroke='currentColor'>
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                strokeWidth={2}
+                d='M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z'
+              />
+            </svg>
+            <h3 className='text-lg font-medium text-gray-900 mb-2'>
+              No orders yet
+            </h3>
+            <p className='text-gray-500 mb-4'>
+              When you make your first purchase, your orders will appear here.
+            </p>
+            <button
+              onClick={() => router.push("/products")}
+              className='bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors'>
+              Start Shopping
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className='space-y-6'>
+        <h2 className='text-2xl font-semibold text-gray-800'>Order History</h2>
+        <div className='space-y-4'>
+          {orders.map((order) => (
+            <div
+              key={order.id}
+              className='bg-white border border-gray-200 rounded-lg p-6'>
+              <div className='flex justify-between items-start mb-4'>
+                <div>
+                  <h3 className='text-lg font-semibold text-gray-900'>
+                    Order #{order.order_number}
+                  </h3>
+                  <p className='text-sm text-gray-600'>
+                    {new Date(order.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className='text-right'>
+                  <span
+                    className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                      order.status === "delivered"
+                        ? "bg-green-100 text-green-800"
+                        : order.status === "shipped"
+                        ? "bg-blue-100 text-blue-800"
+                        : order.status === "processing"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-gray-100 text-gray-800"
+                    }`}>
+                    {order.status.charAt(0).toUpperCase() +
+                      order.status.slice(1)}
+                  </span>
+                  <p className='text-lg font-semibold text-gray-900 mt-1'>
+                    ${order.total_amount}
+                  </p>
+                </div>
+              </div>
+
+              {order.items && order.items.length > 0 && (
+                <div className='border-t pt-4'>
+                  <p className='text-sm font-medium text-gray-700 mb-2'>
+                    Items:
+                  </p>
+                  <div className='space-y-2'>
+                    {order.items.map((item, index) => (
+                      <div
+                        key={index}
+                        className='flex justify-between items-center text-sm'>
+                        <span className='text-gray-600'>
+                          {item.product.name} × {item.quantity}
+                        </span>
+                        <span className='font-medium'>${item.price}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const PaymentMethodsContent = () => (
     <div className='space-y-6'>
@@ -307,7 +486,9 @@ export default function ProfilePage() {
         <h2 className='text-2xl font-semibold text-gray-800'>
           Payment Methods
         </h2>
-        <button className='bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors'>
+        <button
+          onClick={() => setShowPaymentModal(true)}
+          className='bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors'>
           Add Payment Method
         </button>
       </div>
@@ -321,7 +502,7 @@ export default function ProfilePage() {
             strokeLinecap='round'
             strokeLinejoin='round'
             strokeWidth={2}
-            d='M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z'
+            d='M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 003 3z'
           />
         </svg>
         <h3 className='text-lg font-medium text-gray-900 mb-2'>
@@ -457,6 +638,12 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Payment Method Modal */}
+      <PaymentMethodModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+      />
     </main>
   );
 }

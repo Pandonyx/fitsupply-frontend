@@ -6,7 +6,6 @@ export const fetchProducts = createAsyncThunk(
   "products/fetchProducts",
   async (category: string | null = null, { rejectWithValue }) => {
     try {
-      // Use api client which already has the correct base URL
       let url = `/products/`;
       if (category) {
         url += `?category=${encodeURIComponent(category)}`;
@@ -36,7 +35,6 @@ export const fetchProductBySlug = createAsyncThunk(
   "products/fetchProductBySlug",
   async (slug: string, { rejectWithValue }) => {
     try {
-      // Use api client and try multiple approaches
       let response;
       try {
         // First try direct slug lookup

@@ -1,4 +1,3 @@
-// pages/dashboard/admin/index.tsx
 import AdminLayout from "@/components/AdminLayout";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";

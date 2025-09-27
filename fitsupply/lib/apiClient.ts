@@ -7,7 +7,6 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  // Add this to ensure all 2xx responses are treated as success
   validateStatus: function (status) {
     return status >= 200 && status < 300; // default
   },

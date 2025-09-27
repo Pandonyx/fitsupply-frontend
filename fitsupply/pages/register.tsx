@@ -55,13 +55,13 @@ export default function RegisterPage() {
       console.log("Registration result:", registerResult);
       console.log("Registration result type:", registerResult.type);
 
-      // Check if registration was successful
-      if (registerUser.fulfilled.match(registerResult)) {
+      // Use direct type checking instead of .match() to avoid redux-persist issues
+      if (registerResult.type === "auth/register/fulfilled") {
         console.log("Registration fulfilled successfully!");
         console.log("Registration payload:", registerResult.payload);
 
         // Check if we got a token from registration
-        if (registerResult.payload.access_token) {
+        if (registerResult.payload?.access_token) {
           console.log("Got token from registration, fetching user...");
           await dispatch(fetchUser());
         } else {
@@ -69,7 +69,7 @@ export default function RegisterPage() {
           const loginResult = await dispatch(loginUser({ username, password }));
           console.log("Login result:", loginResult);
 
-          if (loginUser.fulfilled.match(loginResult)) {
+          if (loginResult.type === "auth/login/fulfilled") {
             console.log("Login successful, fetching user...");
             await dispatch(fetchUser());
           } else {
@@ -79,7 +79,7 @@ export default function RegisterPage() {
             );
           }
         }
-      } else if (registerUser.rejected.match(registerResult)) {
+      } else if (registerResult.type === "auth/register/rejected") {
         console.error("Registration rejected:", registerResult);
         console.error("Registration error payload:", registerResult.payload);
 
@@ -95,6 +95,15 @@ export default function RegisterPage() {
             "Registration failed. Please check your information and try again."
           );
         }
+      } else {
+        // Handle unexpected action types
+        console.warn(
+          "Unexpected registration result type:",
+          registerResult.type
+        );
+        setFormError(
+          "Registration completed but status is unclear. Please try logging in."
+        );
       }
     } catch (error) {
       console.error("Unexpected error during registration:", error);

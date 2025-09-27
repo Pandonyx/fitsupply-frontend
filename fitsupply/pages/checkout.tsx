@@ -1,4 +1,3 @@
-// pages/checkout.tsx
 import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useRouter } from "next/router";
@@ -26,7 +25,11 @@ interface PaymentInfo {
 }
 
 export default function CheckoutPage() {
-  const { items, status } = useSelector((s: RootState) => s.cart);
+  const {
+    items,
+    status,
+    total: cartTotal,
+  } = useSelector((s: RootState) => s.cart);
   const { user, isAuthenticated } = useSelector((s: RootState) => s.auth);
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
@@ -81,14 +84,25 @@ export default function CheckoutPage() {
     }
   }, [items, status, router, hasCheckedCart]);
 
-  // Calculate totals
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.qty * Number(item.price),
-    0
-  );
+  // Calculate totals - FIXED: Use correct field names
+  const subtotal = items.reduce((sum, item) => {
+    const price = parseFloat(item.product.price) || 0;
+    const quantity = item.quantity || 0;
+    return sum + price * quantity;
+  }, 0);
+
   const shipping = 0; // Free shipping
   const tax = subtotal * 0.08; // 8% tax
   const total = subtotal + shipping + tax;
+
+  // Debug logging
+  console.log("Checkout Debug:", {
+    items,
+    cartTotal,
+    subtotal,
+    total,
+    firstItem: items[0],
+  });
 
   const handleShippingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,18 +161,25 @@ export default function CheckoutPage() {
   };
 
   const createOrder = async () => {
+    // FIXED: Use correct field names and ensure valid total
+    const orderTotal = parseFloat(total.toFixed(2));
+
+    if (isNaN(orderTotal) || orderTotal <= 0) {
+      throw new Error("Invalid order total");
+    }
+
     const orderData = {
       items: items.map((item) => ({
-        product_id: item.productId,
-        quantity: item.qty,
-        price: item.price,
+        product_id: item.product.id, // FIXED: was item.productId
+        quantity: item.quantity, // FIXED: was item.qty
+        price: parseFloat(item.product.price) || 0, // FIXED: was item.price
       })),
       shipping_address: `${shippingInfo.firstName} ${shippingInfo.lastName}\n${shippingInfo.address}\n${shippingInfo.city}, ${shippingInfo.state} ${shippingInfo.zipCode}\n${shippingInfo.country}`,
       billing_address: sameAsBilling
         ? `${shippingInfo.firstName} ${shippingInfo.lastName}\n${shippingInfo.address}\n${shippingInfo.city}, ${shippingInfo.state} ${shippingInfo.zipCode}\n${shippingInfo.country}`
         : `${billingInfo.firstName} ${billingInfo.lastName}\n${billingInfo.address}\n${billingInfo.city}, ${billingInfo.state} ${billingInfo.zipCode}\n${billingInfo.country}`,
       payment_method: "credit_card",
-      total_amount: total.toFixed(2),
+      total_amount: orderTotal, // FIXED: Send as number, not string
       notes: `Phone: ${shippingInfo.phone}`,
     };
 
@@ -573,7 +594,7 @@ export default function CheckoutPage() {
             )}
           </div>
 
-          {/* Order Summary */}
+          {/* Order Summary - FIXED: Use correct field names */}
           <div className='bg-white p-6 rounded-lg shadow-sm h-fit'>
             <h2 className='text-xl font-semibold mb-4'>Order Summary</h2>
 
@@ -581,22 +602,26 @@ export default function CheckoutPage() {
             <div className='space-y-3 mb-4'>
               {items.map((item) => (
                 <div
-                  key={item.productId}
+                  key={item.product.id}
                   className='flex items-center space-x-3'>
                   <div className='relative w-12 h-12 bg-gray-100 rounded'>
-                    <Image
-                      src={item.image || "/placeholder.png"}
-                      alt={item.name}
-                      fill
-                      style={{ objectFit: "contain" }}
+                    <img
+                      src={item.product.image || "/placeholder.png"}
+                      alt={item.product.name}
+                      className='w-full h-full object-cover rounded'
                     />
                   </div>
                   <div className='flex-1'>
-                    <p className='font-medium text-sm'>{item.name}</p>
-                    <p className='text-xs text-gray-600'>Qty: {item.qty}</p>
+                    <p className='font-medium text-sm'>{item.product.name}</p>
+                    <p className='text-xs text-gray-600'>
+                      Qty: {item.quantity}
+                    </p>
                   </div>
                   <p className='font-medium text-sm'>
-                    ${(item.qty * Number(item.price)).toFixed(2)}
+                    $
+                    {(item.quantity * parseFloat(item.product.price)).toFixed(
+                      2
+                    )}
                   </p>
                 </div>
               ))}

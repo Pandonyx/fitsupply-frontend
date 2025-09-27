@@ -1,14 +1,8 @@
-// components/dashboard/admin/products/AddProductModal.tsx
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { Product } from "@/interfaces";
-
-interface AddProductModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-}
+import { AddProductModalProps } from "@/interfaces";
 
 export default function AddProductModal({
   isOpen,
@@ -141,10 +135,18 @@ export default function AddProductModal({
       // Create FormData for file upload
       const submitData = new FormData();
 
-      // Add all form fields
+      // Add all form fields EXCEPT category (we'll handle it separately)
       Object.entries({ ...formData, slug }).forEach(([key, value]) => {
-        submitData.append(key, value.toString());
+        if (key !== "category") {
+          // Skip category field
+          submitData.append(key, value.toString());
+        }
       });
+
+      // Send category as category_id (what Django expects)
+      if (formData.category) {
+        submitData.append("category_id", formData.category);
+      }
 
       // Add image file
       submitData.append("image", selectedImage);

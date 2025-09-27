@@ -19,7 +19,8 @@
     "rechart": "^0.0.1",
     "recharts": "^3.2.1",
     "redux-persist": "^6.0.0",
-    "swr": "^2.2.5"
+    "swr": "^2.2.5",
+    "vercel": "^48.1.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

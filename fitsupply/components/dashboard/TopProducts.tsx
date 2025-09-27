@@ -1,4 +1,3 @@
-// components/dashboard/TopProducts.tsx
 import { useState, useEffect } from "react";
 
 interface TopProduct {

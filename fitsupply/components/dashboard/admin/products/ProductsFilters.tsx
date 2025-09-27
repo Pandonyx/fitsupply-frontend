@@ -1,13 +1,4 @@
-interface ProductsFiltersProps {
-  searchTerm: string;
-  setSearchTerm: (value: string) => void;
-  filterCategory: string;
-  setFilterCategory: (value: string) => void;
-  filterStatus: string;
-  setFilterStatus: (value: string) => void;
-  categories: string[];
-  onClearFilters: () => void;
-}
+import { ProductsFiltersProps } from "@/interfaces";
 
 export default function ProductsFilters({
   searchTerm,

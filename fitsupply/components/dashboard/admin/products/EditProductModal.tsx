@@ -1,14 +1,9 @@
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
+import Image from "next/image";
 import { RootState } from "@/store";
 import { Product } from "@/interfaces";
-
-interface EditProductModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  product: Product | null;
-}
+import { EditProductModalProps } from "@/interfaces";
 
 export default function EditProductModal({
   isOpen,
@@ -18,7 +13,8 @@ export default function EditProductModal({
 }: EditProductModalProps) {
   const { items: products } = useSelector((state: RootState) => state.products);
 
-  const [formData, setFormData] = useState({
+  // Separate image upload from text fields
+  const [textFormData, setTextFormData] = useState({
     name: "",
     description: "",
     short_description: "",
@@ -27,10 +23,15 @@ export default function EditProductModal({
     stock_quantity: 0,
     low_stock_threshold: 10,
     sku: "",
-    category: "",
+    category_id: "",
     is_active: true,
     is_featured: false,
   });
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [currentImageUrl, setCurrentImageUrl] = useState<string>("");
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Get unique categories from existing products
   const availableCategories = [
@@ -42,10 +43,10 @@ export default function EditProductModal({
     ).values(),
   ];
 
-  // Populate form with product data when modal opens
+  // Initialize form data when product changes
   useEffect(() => {
     if (product && isOpen) {
-      setFormData({
+      setTextFormData({
         name: product.name || "",
         description: product.description || "",
         short_description: product.short_description || "",
@@ -54,56 +55,152 @@ export default function EditProductModal({
         stock_quantity: product.stock_quantity || 0,
         low_stock_threshold: product.low_stock_threshold || 10,
         sku: product.sku || "",
-        category: product.category?.id?.toString() || "",
+        category_id: product.category?.id?.toString() || "",
         is_active: product.is_active ?? true,
         is_featured: product.is_featured ?? false,
       });
+
+      // Set current image
+      if (product.image) {
+        setCurrentImageUrl(product.image);
+        setImagePreview(product.image);
+      } else {
+        setCurrentImageUrl("");
+        setImagePreview("");
+      }
+
+      // Reset image upload
+      setImageFile(null);
     }
   }, [product, isOpen]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file
+      if (!file.type.startsWith("image/")) {
+        alert("Please select a valid image file");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Image size must be less than 5MB");
+        return;
+      }
+
+      setImageFile(file);
+      const url = URL.createObjectURL(file);
+      setImagePreview(url);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview("");
+    setCurrentImageUrl("");
+  };
+
+  // Update text fields only
+  const updateTextFields = async () => {
+    try {
+      const response = await fetch(
+        `${
+          process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+        }/api/v1/products/${product.slug}/`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify(textFormData),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Text update failed: ${errorData}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Text update error:", error);
+      throw error;
+    }
+  };
+
+  // Update image only (if changed)
+  const updateImage = async () => {
+    if (!imageFile) return null;
+
+    try {
+      const formData = new FormData();
+      formData.append("image", imageFile);
+
+      const response = await fetch(
+        `${
+          process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+        }/api/v1/products/${product.slug}/`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            // No Content-Type for FormData
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Image update failed: ${errorData}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Image update error:", error);
+      throw error;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!product?.id) {
+    if (!product?.slug) {
       alert("No product selected for editing");
       return;
     }
 
-    console.log("Form data being sent:", formData);
+    setIsUpdating(true);
 
     try {
-      console.log("Making API request to update product:", product.id);
+      console.log("Starting update process...");
 
-      const response = await fetch(`/api/v1/products/${product.id}/`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(formData),
-      });
+      // Step 1: Update text fields
+      console.log("Updating text fields...");
+      await updateTextFields();
+      console.log("Text fields updated successfully");
 
-      console.log("Response status:", response.status);
-
-      if (response.ok) {
-        const responseData = await response.json();
-        console.log("Success response data:", responseData);
-        alert("Product updated successfully!");
-        onSuccess();
-      } else {
-        const errorData = await response.text();
-        console.log("Error response:", errorData);
-        alert(`Failed to update product: ${errorData}`);
+      // Step 2: Update image if changed
+      if (imageFile) {
+        console.log("Updating image...");
+        await updateImage();
+        console.log("Image updated successfully");
       }
-    } catch (error) {
-      console.error("Error updating product:", error);
-      alert("Error updating product");
+
+      alert("Product updated successfully!");
+      onSuccess();
+      handleClose();
+    } catch (error: any) {
+      console.error("Update failed:", error);
+      alert(`Failed to update product: ${error.message}`);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
   const handleClose = () => {
-    // Reset form data when closing
-    setFormData({
+    // Reset all form data
+    setTextFormData({
       name: "",
       description: "",
       short_description: "",
@@ -112,10 +209,16 @@ export default function EditProductModal({
       stock_quantity: 0,
       low_stock_threshold: 10,
       sku: "",
-      category: "",
+      category_id: "",
       is_active: true,
       is_featured: false,
     });
+
+    setImageFile(null);
+    setImagePreview("");
+    setCurrentImageUrl("");
+    setIsUpdating(false);
+
     onClose();
   };
 
@@ -125,9 +228,48 @@ export default function EditProductModal({
     <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
       <div className='bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto'>
         <h2 className='text-2xl font-bold mb-4'>Edit Product</h2>
+
         <form
           onSubmit={handleSubmit}
           className='space-y-4'>
+          {/* Product Image Section */}
+          <div>
+            <label className='block text-sm font-medium text-gray-700 mb-2'>
+              Product Image
+            </label>
+
+            {/* Current/Preview Image */}
+            {imagePreview && (
+              <div className='mb-4'>
+                <div className='relative w-32 h-32 border border-gray-300 rounded-lg overflow-hidden'>
+                  <Image
+                    src={imagePreview}
+                    alt='Product preview'
+                    fill
+                    className='object-cover'
+                  />
+                </div>
+                <button
+                  type='button'
+                  onClick={handleRemoveImage}
+                  className='mt-2 text-sm text-red-600 hover:text-red-800'>
+                  Remove Image
+                </button>
+              </div>
+            )}
+
+            {/* File Input */}
+            <input
+              type='file'
+              accept='image/*'
+              onChange={handleImageChange}
+              className='block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100'
+            />
+            <p className='text-xs text-gray-500 mt-1'>
+              Supported formats: JPG, PNG, GIF. Max size: 5MB
+            </p>
+          </div>
+
           <div className='grid grid-cols-2 gap-4'>
             <div>
               <label className='block text-sm font-medium text-gray-700 mb-1'>
@@ -137,9 +279,9 @@ export default function EditProductModal({
                 type='text'
                 required
                 className='w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                value={formData.name}
+                value={textFormData.name}
                 onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
+                  setTextFormData({ ...textFormData, name: e.target.value })
                 }
               />
             </div>
@@ -151,9 +293,9 @@ export default function EditProductModal({
                 type='text'
                 required
                 className='w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                value={formData.sku}
+                value={textFormData.sku}
                 onChange={(e) =>
-                  setFormData({ ...formData, sku: e.target.value })
+                  setTextFormData({ ...textFormData, sku: e.target.value })
                 }
               />
             </div>
@@ -166,9 +308,12 @@ export default function EditProductModal({
             <select
               required
               className='w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-              value={formData.category}
+              value={textFormData.category_id}
               onChange={(e) =>
-                setFormData({ ...formData, category: e.target.value })
+                setTextFormData({
+                  ...textFormData,
+                  category_id: e.target.value,
+                })
               }>
               <option value=''>Select a category</option>
               {availableCategories.map((category) => (
@@ -189,9 +334,12 @@ export default function EditProductModal({
               required
               rows={3}
               className='w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-              value={formData.description}
+              value={textFormData.description}
               onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
+                setTextFormData({
+                  ...textFormData,
+                  description: e.target.value,
+                })
               }
             />
           </div>
@@ -203,9 +351,12 @@ export default function EditProductModal({
             <input
               type='text'
               className='w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-              value={formData.short_description}
+              value={textFormData.short_description}
               onChange={(e) =>
-                setFormData({ ...formData, short_description: e.target.value })
+                setTextFormData({
+                  ...textFormData,
+                  short_description: e.target.value,
+                })
               }
             />
           </div>
@@ -221,9 +372,9 @@ export default function EditProductModal({
                 required
                 min='0'
                 className='w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                value={formData.price}
+                value={textFormData.price}
                 onChange={(e) =>
-                  setFormData({ ...formData, price: e.target.value })
+                  setTextFormData({ ...textFormData, price: e.target.value })
                 }
               />
             </div>
@@ -236,9 +387,12 @@ export default function EditProductModal({
                 step='0.01'
                 min='0'
                 className='w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                value={formData.compare_price}
+                value={textFormData.compare_price}
                 onChange={(e) =>
-                  setFormData({ ...formData, compare_price: e.target.value })
+                  setTextFormData({
+                    ...textFormData,
+                    compare_price: e.target.value,
+                  })
                 }
               />
             </div>
@@ -254,10 +408,10 @@ export default function EditProductModal({
                 required
                 min='0'
                 className='w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                value={formData.stock_quantity}
+                value={textFormData.stock_quantity}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
+                  setTextFormData({
+                    ...textFormData,
                     stock_quantity: parseInt(e.target.value) || 0,
                   })
                 }
@@ -271,10 +425,10 @@ export default function EditProductModal({
                 type='number'
                 min='0'
                 className='w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                value={formData.low_stock_threshold}
+                value={textFormData.low_stock_threshold}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
+                  setTextFormData({
+                    ...textFormData,
                     low_stock_threshold: parseInt(e.target.value) || 10,
                   })
                 }
@@ -286,9 +440,12 @@ export default function EditProductModal({
             <label className='flex items-center'>
               <input
                 type='checkbox'
-                checked={formData.is_active}
+                checked={textFormData.is_active}
                 onChange={(e) =>
-                  setFormData({ ...formData, is_active: e.target.checked })
+                  setTextFormData({
+                    ...textFormData,
+                    is_active: e.target.checked,
+                  })
                 }
                 className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
               />
@@ -297,9 +454,12 @@ export default function EditProductModal({
             <label className='flex items-center'>
               <input
                 type='checkbox'
-                checked={formData.is_featured}
+                checked={textFormData.is_featured}
                 onChange={(e) =>
-                  setFormData({ ...formData, is_featured: e.target.checked })
+                  setTextFormData({
+                    ...textFormData,
+                    is_featured: e.target.checked,
+                  })
                 }
                 className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
               />
@@ -313,13 +473,15 @@ export default function EditProductModal({
             <button
               type='button'
               onClick={handleClose}
-              className='px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors'>
+              disabled={isUpdating}
+              className='px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50'>
               Cancel
             </button>
             <button
               type='submit'
-              className='px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors'>
-              Update Product
+              disabled={isUpdating}
+              className='px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50'>
+              {isUpdating ? "Updating..." : "Update Product"}
             </button>
           </div>
         </form>

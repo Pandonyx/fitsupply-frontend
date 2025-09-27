@@ -1,4 +1,3 @@
-// components/dashboard/RecentActivity.tsx
 import { useState, useEffect } from "react";
 
 interface ActivityItem {

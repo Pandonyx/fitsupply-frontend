@@ -38,9 +38,6 @@ const initialState: AuthState = {
 
 // Parse DRF errors
 const parseDfrError = (error: any): string => {
-  console.log("Parsing error:", error);
-  console.log("Error type:", typeof error);
-
   if (typeof error === "string") return error;
   if (error?.detail) return error.detail;
   if (error?.non_field_errors) return error.non_field_errors.join(" ");
@@ -51,20 +48,14 @@ const parseDfrError = (error: any): string => {
   return "An unknown error occurred.";
 };
 
-// Async thunk for login - using your Django JWT setup
+// Async thunk for login
 export const loginUser = createAsyncThunk<
   string,
   { username: string; password: string },
   { rejectValue: string }
 >("auth/login", async (credentials, { rejectWithValue }) => {
   try {
-    console.log("Attempting login with:", credentials);
-
-    // Your Django JWT endpoint (no leading slash since baseURL includes /api/v1)
     const response = await api.post("token/", credentials);
-
-    console.log("Login response:", response.data);
-
     const token = response.data.access;
 
     if (!token) {
@@ -81,12 +72,11 @@ export const loginUser = createAsyncThunk<
 
     return token;
   } catch (error: any) {
-    console.error("Login error:", error.response?.data);
     return rejectWithValue(parseDfrError(error.response?.data));
   }
 });
 
-// Async thunk to fetch user - using your Django user endpoint
+// Async thunk to fetch user
 export const fetchUser = createAsyncThunk<User, void, { rejectValue: string }>(
   "auth/fetchUser",
   async (_, { rejectWithValue, getState }) => {
@@ -100,16 +90,9 @@ export const fetchUser = createAsyncThunk<User, void, { rejectValue: string }>(
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       }
 
-      console.log("Fetching user profile...");
-
-      // Your Django user profile endpoint (no leading slash since baseURL includes /api/v1)
       const response = await api.get("user/");
-
-      console.log("User profile response:", response.data);
-
       return response.data;
     } catch (error: any) {
-      console.error("Fetch user error:", error.response?.data);
       return rejectWithValue(
         error.response?.data?.detail || "Failed to fetch user details"
       );
@@ -117,7 +100,7 @@ export const fetchUser = createAsyncThunk<User, void, { rejectValue: string }>(
   }
 );
 
-// Async thunk for registration - using your Django registration endpoint
+// Async thunk for registration
 export const registerUser = createAsyncThunk<
   { user: User; access_token: string },
   {
@@ -131,70 +114,43 @@ export const registerUser = createAsyncThunk<
   { rejectValue: string }
 >("auth/register", async (userData, { rejectWithValue }) => {
   try {
-    console.log("Attempting registration with:", userData);
+    const response = await fetch(
+      `${
+        process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+      }/api/v1/register/`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      }
+    );
 
-    // Temporarily remove auth header for this public endpoint
-    const originalAuthHeader = api.defaults.headers.common["Authorization"];
-    delete api.defaults.headers.common["Authorization"];
+    if (!response.ok) {
+      const errorData = await response.json();
+      return rejectWithValue(parseDfrError(errorData));
+    }
 
-    // Your Django registration endpoint (no leading slash since baseURL includes /api/v1)
-    const response = await api.post("register/", userData);
+    const data = await response.json();
+    const { user, access, refresh } = data;
 
-    console.log("Registration response:", response.data);
-
-    console.log("Registration response structure:", response.data);
-
-    // Handle Django response format exactly as shown in network tab
-    const user = response.data.user;
-    const accessToken = response.data.access;
-    const refreshToken = response.data.refresh;
-
-    if (accessToken && user) {
+    if (access && user) {
       // Save tokens to localStorage
       if (typeof window !== "undefined") {
-        localStorage.setItem("token", accessToken);
-        localStorage.setItem("refresh_token", refreshToken);
+        localStorage.setItem("token", access);
+        localStorage.setItem("refresh_token", refresh);
       }
 
       // Set token in API client for future requests
-      api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+      api.defaults.headers.common["Authorization"] = `Bearer ${access}`;
 
-      console.log("Registration successful with token");
-      return { user, access_token: accessToken };
+      return { user, access_token: access };
     } else {
-      console.log("Registration response missing required fields");
-      return { user: user || response.data, access_token: "" };
+      return { user: user || data, access_token: "" };
     }
   } catch (error: any) {
-    console.error("Registration error:", error.response?.data);
-    console.error("Registration error status:", error.response?.status);
-
-    // If it's actually a successful status code, don't treat it as an error
-    if (error.response?.status === 201 || error.response?.status === 200) {
-      console.log("Registration actually succeeded, treating as success");
-      const user = error.response.data.user || error.response.data;
-      const token =
-        error.response.data.access ||
-        error.response.data.access_token ||
-        error.response.data.token;
-
-      if (token) {
-        if (typeof window !== "undefined") {
-          localStorage.setItem("token", token);
-        }
-        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        return { user, access_token: token };
-      } else {
-        return { user, access_token: "" };
-      }
-    }
-
-    return rejectWithValue(parseDfrError(error.response?.data));
-  } finally {
-    // Restore the original auth header after the request is complete
-    if (originalAuthHeader) {
-      api.defaults.headers.common["Authorization"] = originalAuthHeader;
-    }
+    return rejectWithValue(error.message || "Registration failed");
   }
 });
 
@@ -213,16 +169,9 @@ export const initializeAuth = createAsyncThunk<
   api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
   try {
-    console.log("Initializing auth with stored token...");
-
-    // Your Django user profile endpoint (no leading slash since baseURL includes /api/v1)
     const response = await api.get("user/");
-
-    console.log("Initialize auth response:", response.data);
-
     return response.data;
   } catch (error: any) {
-    console.error("Initialize auth error:", error.response?.data);
     // Token is invalid, clear it
     if (typeof window !== "undefined") {
       localStorage.removeItem("token");
