@@ -5,6 +5,7 @@ A modern, full-stack sports supplement e-commerce platform built with Next.js, T
 ## 🚀 Live Demo
 
 - **Frontend**: [https://fitsupply-liard.vercel.app](https://fitsupply-liard.vercel.app)
+- 
 for demo purposes use the following admin credentials to access admin content:
 Username: admin
 password: admin1234
