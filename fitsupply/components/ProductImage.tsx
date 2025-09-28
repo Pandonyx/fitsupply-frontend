@@ -28,10 +28,10 @@ const ProductImage = ({
     "/images/products/glutamine.webp",
     "/images/products/mass1.png",
     "/images/products/preworkout1.png",
-    "/images/products/wheyconcentrate.webp",
     "/images/products/wheyisolate.jpg",
-    "/images/products/multivita.jpg",
     "/images/products/plantbasedwhey.jpg",
+    "/images/products/dextrose.jpg",
+    "/images/products/bcaa2.jpg",
   ];
 
   const getFallbackImage = () => {
