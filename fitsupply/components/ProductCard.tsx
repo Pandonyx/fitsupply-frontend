@@ -1,36 +1,43 @@
 import Link from "next/link";
-import Image from "next/image";
+import ProductImage from "./ProductImage";
 import { Product } from "@/interfaces";
 
 interface ProductCardProps {
   product: Product;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const imageUrl = product.images?.[0]
-    ? new URL(product.images[0], API_URL).href
-    : "/placeholder.png";
+  const imageUrl = (product as any).image || "/images/products/placeholder.jpg";
 
   return (
-    <div className='border rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300'>
-      <Link href={`/products/${product.slug}`}>
-        <div className='relative w-full h-64'>
-          <Image
+    <div className='bg-white border rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full'>
+      <Link href={`/products/${(product as any).slug}`}>
+        {/* Fixed height container for consistent image sizing */}
+        <div className='relative w-full h-48 bg-gray-100'>
+          <ProductImage
             src={imageUrl}
-            alt={product.name}
+            alt={(product as any).name}
+            productId={(product as any).id}
             fill
-            style={{ objectFit: "cover" }}
+            style={{ objectFit: "contain" }}
+            className='p-2'
           />
         </div>
-        <div className='p-4'>
-          <h2 className='text-lg font-semibold truncate'>{product.name}</h2>
-          <p className='text-gray-500'>
-            {product.category?.name || "Uncategorized"}
-          </p>
-          <p className='text-xl font-bold mt-2'>
-            ${Number(product.price).toFixed(2)}
+
+        {/* Content section with flex-grow to fill remaining space */}
+        <div className='p-4 flex-grow flex flex-col justify-between'>
+          <div>
+            <h2 className='text-lg font-semibold line-clamp-2 mb-2'>
+              {(product as any).name}
+            </h2>
+            <p className='text-gray-500 text-sm mb-2'>
+              {typeof (product as any).category === "object"
+                ? (product as any).category?.name
+                : (product as any).category || "Uncategorized"}
+            </p>
+          </div>
+          <p className='text-xl font-bold text-blue-600 mt-auto'>
+            ${Number((product as any).price).toFixed(2)}
           </p>
         </div>
       </Link>

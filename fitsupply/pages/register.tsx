@@ -20,13 +20,8 @@ export default function RegisterPage() {
     (state: RootState) => state.auth
   );
 
-  // Debug: Log the auth state changes
-  console.log("Current auth state:", { isAuthenticated, status, error });
-
   useEffect(() => {
-    // When authentication is successful (after register + login), redirect to home.
     if (isAuthenticated) {
-      console.log("User is authenticated, redirecting to home");
       router.push("/");
     }
   }, [isAuthenticated, router]);
@@ -37,7 +32,7 @@ export default function RegisterPage() {
       setFormError("Passwords do not match.");
       return;
     }
-    setFormError(null); // Clear local errors before dispatching
+    setFormError(null);
 
     const registerData = {
       username,
@@ -48,42 +43,23 @@ export default function RegisterPage() {
       last_name: lastName,
     };
 
-    console.log("Attempting registration with data:", registerData);
-
     try {
       const registerResult = await dispatch(registerUser(registerData));
-      console.log("Registration result:", registerResult);
-      console.log("Registration result type:", registerResult.type);
 
-      // Use direct type checking instead of .match() to avoid redux-persist issues
       if (registerResult.type === "auth/register/fulfilled") {
-        console.log("Registration fulfilled successfully!");
-        console.log("Registration payload:", registerResult.payload);
-
-        // Check if we got a token from registration
         if (registerResult.payload?.access_token) {
-          console.log("Got token from registration, fetching user...");
           await dispatch(fetchUser());
         } else {
-          console.log("No token from registration, attempting login...");
           const loginResult = await dispatch(loginUser({ username, password }));
-          console.log("Login result:", loginResult);
-
           if (loginResult.type === "auth/login/fulfilled") {
-            console.log("Login successful, fetching user...");
             await dispatch(fetchUser());
           } else {
-            console.error("Login failed after successful registration");
             setFormError(
               "Registration successful, but login failed. Please try logging in manually."
             );
           }
         }
       } else if (registerResult.type === "auth/register/rejected") {
-        console.error("Registration rejected:", registerResult);
-        console.error("Registration error payload:", registerResult.payload);
-
-        // Set a more user-friendly error message
         if (registerResult.payload) {
           setFormError(
             typeof registerResult.payload === "string"
@@ -96,17 +72,11 @@ export default function RegisterPage() {
           );
         }
       } else {
-        // Handle unexpected action types
-        console.warn(
-          "Unexpected registration result type:",
-          registerResult.type
-        );
         setFormError(
           "Registration completed but status is unclear. Please try logging in."
         );
       }
     } catch (error) {
-      console.error("Unexpected error during registration:", error);
       setFormError("An unexpected error occurred. Please try again.");
     }
   };
@@ -114,32 +84,6 @@ export default function RegisterPage() {
   return (
     <main className='container mx-auto p-4 flex justify-center'>
       <div className='w-full max-w-md'>
-        {/* Debug info - remove this later */}
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            right: 0,
-            background: "white",
-            padding: "10px",
-            border: "1px solid black",
-            fontSize: "12px",
-            maxWidth: "300px",
-          }}>
-          <strong>Debug Auth State:</strong>
-          <br />
-          Status: {status}
-          <br />
-          Authenticated: {isAuthenticated ? "Yes" : "No"}
-          <br />
-          Error:{" "}
-          {error
-            ? typeof error === "string"
-              ? error
-              : JSON.stringify(error)
-            : "None"}
-        </div>
-
         <form
           onSubmit={handleSubmit}
           className='bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4'>

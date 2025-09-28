@@ -1,27 +1,28 @@
 import { useState } from "react";
-import Image from "next/image";
+import ProductImage from "./ProductImage";
 
 interface ProductGalleryProps {
   images: string[];
   productName: string;
+  productId?: number;
 }
 
 export default function ProductGallery({
   images,
   productName,
+  productId,
 }: ProductGalleryProps) {
-  const [mainImage, setMainImage] = useState(images[0]);
-
-  if (!images || images.length === 0) {
-    return null; // Or a placeholder
-  }
+  const [mainImage, setMainImage] = useState(
+    images[0] || "/images/products/placeholder.jpg"
+  );
 
   return (
     <div className='flex flex-col items-center'>
       <div className='w-full h-96 relative mb-4'>
-        <Image
+        <ProductImage
           src={mainImage}
           alt={productName}
+          productId={productId}
           fill
           style={{ objectFit: "contain" }}
           className='rounded-lg shadow-md'
@@ -35,9 +36,10 @@ export default function ProductGallery({
               image === mainImage ? "border-blue-500" : "border-transparent"
             } rounded-md overflow-hidden flex-shrink-0`}
             onClick={() => setMainImage(image)}>
-            <Image
+            <ProductImage
               src={image}
               alt={`${productName} thumbnail ${index + 1}`}
+              productId={productId}
               fill
               style={{ objectFit: "cover" }}
             />
