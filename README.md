@@ -5,7 +5,9 @@ A modern, full-stack sports supplement e-commerce platform built with Next.js, T
 ## 🚀 Live Demo
 
 - **Frontend**: [https://fitsupply-liard.vercel.app](https://fitsupply-liard.vercel.app)
-- **Backend API**: [https://pandonyx.pythonanywhere.com](https://pandonyx.pythonanywhere.com)
+for demo purposes use the following admin credentials to access admin content:
+Username: admin
+password: admin1234
 
 ## 📋 Table of Contents
 
