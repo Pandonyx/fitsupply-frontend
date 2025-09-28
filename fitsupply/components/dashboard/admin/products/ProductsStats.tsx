@@ -7,10 +7,11 @@ interface ProductsStatsProps {
 export default function ProductsStats({ products }: ProductsStatsProps) {
   const stats = {
     total: products.length,
-    active: products.filter((p) => p.is_active).length,
-    featured: products.filter((p) => p.is_featured).length,
-    lowStock: products.filter((p) => p.stock_quantity <= p.low_stock_threshold)
-      .length,
+    active: products.filter((p) => (p as any).is_active).length,
+    featured: products.filter((p) => (p as any).is_featured).length,
+    lowStock: products.filter(
+      (p) => (p as any).stock_quantity <= (p as any).low_stock_threshold
+    ).length,
   };
 
   return (

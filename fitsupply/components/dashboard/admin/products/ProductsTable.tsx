@@ -76,9 +76,9 @@ export default function ProductsTable({
                 <td className='px-6 py-4 whitespace-nowrap'>
                   <div className='flex items-center'>
                     <div className='flex-shrink-0 h-12 w-12'>
-                      {product.image ? (
+                      {(product as any).image ? (
                         <Image
-                          src={product.image}
+                          src={(product as any).image}
                           alt={product.name}
                           width={48}
                           height={48}
@@ -97,23 +97,24 @@ export default function ProductsTable({
                         {product.name}
                       </div>
                       <div className='text-sm text-gray-500 max-w-xs truncate'>
-                        {product.short_description || product.description}
+                        {(product as any).short_description ||
+                          (product as any).description}
                       </div>
                     </div>
                   </div>
                 </td>
                 <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                  {product.sku}
+                  {(product as any).sku}
                 </td>
                 <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                  {product.category?.name}
+                  {(product as any).category?.name || (product as any).category}
                 </td>
                 <td className='px-6 py-4 whitespace-nowrap'>
                   <input
                     type='number'
                     step='0.01'
                     className='w-20 px-2 py-1 border border-gray-300 rounded text-sm'
-                    defaultValue={product.price}
+                    defaultValue={(product as any).price}
                     onBlur={(e) =>
                       onQuickEdit(product.id, "price", e.target.value)
                     }
@@ -124,7 +125,7 @@ export default function ProductsTable({
                     <input
                       type='number'
                       className='w-16 px-2 py-1 border border-gray-300 rounded text-sm'
-                      defaultValue={product.stock_quantity}
+                      defaultValue={(product as any).stock_quantity}
                       onBlur={(e) =>
                         onQuickEdit(
                           product.id,
@@ -133,7 +134,8 @@ export default function ProductsTable({
                         )
                       }
                     />
-                    {product.stock_quantity <= product.low_stock_threshold && (
+                    {(product as any).stock_quantity <=
+                      (product as any).low_stock_threshold && (
                       <span className='inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800'>
                         Low Stock
                       </span>
@@ -145,7 +147,7 @@ export default function ProductsTable({
                     <label className='flex items-center'>
                       <input
                         type='checkbox'
-                        checked={product.is_active}
+                        checked={(product as any).is_active}
                         onChange={(e) =>
                           onQuickEdit(product.id, "is_active", e.target.checked)
                         }
@@ -156,7 +158,7 @@ export default function ProductsTable({
                     <label className='flex items-center'>
                       <input
                         type='checkbox'
-                        checked={product.is_featured}
+                        checked={(product as any).is_featured}
                         onChange={(e) =>
                           onQuickEdit(
                             product.id,

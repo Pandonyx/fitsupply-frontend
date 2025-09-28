@@ -110,29 +110,29 @@ const SummaryCards = () => {
 
   // Calculate percentages if not provided by API (with null checks)
   const salesChange =
-    summary.sales_change_percent ||
-    (summary.total_sales_previous > 0
+    (summary as any).sales_change_percent ||
+    ((summary as any).total_sales_previous > 0
       ? calculatePercentageChange(
-          summary.total_sales,
-          summary.total_sales_previous
+          (summary as any).total_sales,
+          (summary as any).total_sales_previous
         )
       : 0);
 
   const ordersChange =
-    summary.orders_change_percent ||
-    (summary.new_orders_previous > 0
+    (summary as any).orders_change_percent ||
+    ((summary as any).new_orders_previous > 0
       ? calculatePercentageChange(
-          summary.new_orders,
-          summary.new_orders_previous
+          (summary as any).new_orders,
+          (summary as any).new_orders_previous
         )
       : 0);
 
   const customersChange =
-    summary.customers_change_percent ||
-    (summary.new_customers_previous > 0
+    (summary as any).customers_change_percent ||
+    ((summary as any).new_customers_previous > 0
       ? calculatePercentageChange(
-          summary.new_customers,
-          summary.new_customers_previous
+          (summary as any).new_customers,
+          (summary as any).new_customers_previous
         )
       : 0);
 

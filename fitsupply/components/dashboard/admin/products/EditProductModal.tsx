@@ -39,6 +39,10 @@ export default function EditProductModal({
       products
         .map((p: Product) => p.category)
         .filter(Boolean)
+        .filter(
+          (cat): cat is { id: number; name: string; slug: string } =>
+            typeof cat === "object" && cat !== null && "id" in cat
+        )
         .map((cat) => [cat.id, { id: cat.id, name: cat.name }])
     ).values(),
   ];
@@ -47,17 +51,17 @@ export default function EditProductModal({
   useEffect(() => {
     if (product && isOpen) {
       setTextFormData({
-        name: product.name || "",
-        description: product.description || "",
-        short_description: product.short_description || "",
-        price: product.price?.toString() || "",
-        compare_price: product.compare_price?.toString() || "",
-        stock_quantity: product.stock_quantity || 0,
-        low_stock_threshold: product.low_stock_threshold || 10,
-        sku: product.sku || "",
-        category_id: product.category?.id?.toString() || "",
-        is_active: product.is_active ?? true,
-        is_featured: product.is_featured ?? false,
+        name: (product as any).name || "",
+        description: (product as any).description || "",
+        short_description: (product as any).short_description || "",
+        price: (product as any).price?.toString() || "",
+        compare_price: (product as any).compare_price?.toString() || "",
+        stock_quantity: (product as any).stock_quantity || 0,
+        low_stock_threshold: (product as any).low_stock_threshold || 10,
+        sku: (product as any).sku || "",
+        category_id: (product as any).category?.id?.toString() || "",
+        is_active: (product as any).is_active ?? true,
+        is_featured: (product as any).is_featured ?? false,
       });
 
       // Set current image
@@ -105,7 +109,7 @@ export default function EditProductModal({
       const response = await fetch(
         `${
           process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-        }/api/v1/products/${product.slug}/`,
+        }/api/v1/products/${(product as any).slug}/`,
         {
           method: "PATCH",
           headers: {
@@ -139,7 +143,7 @@ export default function EditProductModal({
       const response = await fetch(
         `${
           process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-        }/api/v1/products/${product.slug}/`,
+        }/api/v1/products/${(product as any).slug}/`,
         {
           method: "PATCH",
           headers: {
@@ -165,7 +169,7 @@ export default function EditProductModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!product?.slug) {
+    if (!(product as any)?.slug) {
       alert("No product selected for editing");
       return;
     }

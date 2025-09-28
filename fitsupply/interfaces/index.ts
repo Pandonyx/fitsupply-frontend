@@ -130,11 +130,13 @@ interface AddProductModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (product: ProductData) => void;
+  onSuccess: () => void;
 }
 
 interface EditProductModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess: () => void;
   product: ProductData;
   onSubmit: (product: ProductData) => void;
 }
@@ -158,8 +160,15 @@ interface ProductFilters {
   stockStatus: string;
 }
 
-interface ProductsHeaderProps {
-  onAddProduct: () => void;
+export interface ProductsFiltersProps {
+  searchTerm: string;
+  setSearchTerm: (value: string) => void;
+  filterCategory: string;
+  setFilterCategory: (value: string) => void;
+  filterStatus: string;
+  setFilterStatus: (value: string) => void;
+  categories: string[];
+  onClearFilters: () => void;
 }
 
 interface ProductsStatsProps {

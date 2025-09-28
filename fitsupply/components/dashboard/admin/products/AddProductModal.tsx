@@ -94,6 +94,10 @@ export default function AddProductModal({
             products
               .map((p: Product) => p.category)
               .filter(Boolean)
+              .filter(
+                (cat): cat is { id: number; name: string; slug: string } =>
+                  typeof cat === "object" && cat !== null && "id" in cat
+              )
               .map((cat) => [cat.id, { id: cat.id, name: cat.name }])
           ).values(),
         ];
@@ -107,6 +111,10 @@ export default function AddProductModal({
           products
             .map((p: Product) => p.category)
             .filter(Boolean)
+            .filter(
+              (cat): cat is { id: number; name: string; slug: string } =>
+                typeof cat === "object" && cat !== null && "id" in cat
+            )
             .map((cat) => [cat.id, { id: cat.id, name: cat.name }])
         ).values(),
       ];
